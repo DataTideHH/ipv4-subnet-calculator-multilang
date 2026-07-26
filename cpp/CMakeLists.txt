@@ -37,4 +37,11 @@ if(BUILD_TESTING)
         NAME cpp_contract_tests
         COMMAND ipv4_subnet_tests "${CMAKE_CURRENT_SOURCE_DIR}/../tests/cases.tsv"
     )
+
+    add_test(
+        NAME cpp_cli_smoke_tests
+        COMMAND ${CMAKE_COMMAND}
+            "-DPROGRAM=$<TARGET_FILE:ipv4_subnet_calculator>"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/cli_smoke_tests.cmake"
+    )
 endif()

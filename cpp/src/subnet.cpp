@@ -1,6 +1,5 @@
 #include "subnet.h"
 
-#include <charconv>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
@@ -51,15 +50,27 @@ bool is_all_digits(std::string_view text) {
     return true;
 }
 
-int parse_decimal(std::string_view text, std::string_view label) {
-    int value = 0;
-    const auto* begin = text.data();
-    const auto* end = text.data() + text.size();
-    const auto [position, error] = std::from_chars(begin, end, value);
+int parse_bounded_decimal(std::string_view text, std::string_view label, int maximum) {
+    const auto first_non_zero = text.find_first_not_of('0');
+    const std::string_view normalized = first_non_zero == std::string_view::npos
+        ? text.substr(text.size() - 1)
+        : text.substr(first_non_zero);
+    const std::string maximum_text = std::to_string(maximum);
 
-    if (error != std::errc{} || position != end) {
+    const bool exceeds_maximum = normalized.size() > maximum_text.size()
+        || (normalized.size() == maximum_text.size()
+            && normalized.compare(maximum_text) > 0);
+
+    if (exceeds_maximum) {
         throw std::invalid_argument(
-            std::string(label) + " is not a valid number: " + std::string(text));
+            std::string(label) + " out of range (0-" + maximum_text + "): "
+            + std::string(text));
+    }
+
+    int value = 0;
+
+    for (const char character : normalized) {
+        value = value * 10 + (character - '0');
     }
 
     return value;
@@ -75,14 +86,7 @@ int parse_prefix(std::string_view prefix_text) {
             "CIDR prefix must contain only digits: " + std::string(prefix_text));
     }
 
-    const int prefix = parse_decimal(prefix_text, "CIDR prefix");
-
-    if (prefix < 0 || prefix > 32) {
-        throw std::invalid_argument(
-            "CIDR prefix out of range (0-32): " + std::to_string(prefix));
-    }
-
-    return prefix;
+    return parse_bounded_decimal(prefix_text, "CIDR prefix", 32);
 }
 
 std::uint32_t parse_ipv4(std::string_view ip_text) {
@@ -111,13 +115,7 @@ std::uint32_t parse_ipv4(std::string_view ip_text) {
                 "IPv4 octet must not have leading zeros: " + std::string(part));
         }
 
-        const int octet = parse_decimal(part, "IPv4 octet");
-
-        if (octet < 0 || octet > 255) {
-            throw std::invalid_argument(
-                "IPv4 octet out of range (0-255): " + std::to_string(octet));
-        }
-
+        const int octet = parse_bounded_decimal(part, "IPv4 octet", 255);
         result = (result << 8) | static_cast<std::uint32_t>(octet);
     }
 

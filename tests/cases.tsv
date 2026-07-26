@@ -13,10 +13,12 @@ invalid	empty-ipv4	/24									IPv4 address is empty.
 invalid	empty-prefix	192.168.1.10/									CIDR prefix is empty.
 invalid	nondigit-prefix	192.168.1.10/abc									CIDR prefix must contain only digits: abc
 invalid	prefix-out-of-range	192.168.1.10/33									CIDR prefix out of range (0-32): 33
+invalid	oversized-prefix	192.168.1.10/999999999999999999999									CIDR prefix out of range (0-32): 999999999999999999999
 invalid	wrong-octet-count	192.168.1/24									IPv4 must have exactly four octets: 192.168.1
 invalid	empty-octet	192..1.10/24									IPv4 octet is empty in: 192..1.10
 invalid	nondigit-octet	192.168.a.10/24									IPv4 octet must contain only digits: a
 invalid	octet-out-of-range	192.168.1.300/24									IPv4 octet out of range (0-255): 300
+invalid	oversized-octet	192.168.1.999999999999999999999/24									IPv4 octet out of range (0-255): 999999999999999999999
 invalid	leading-zero	192.168.001.10/24									IPv4 octet must not have leading zeros: 001
 invalid	prefix-sign	192.168.1.10/+24									CIDR prefix must contain only digits: +24
 invalid	internal-whitespace	192.168.1.10/2 4									CIDR prefix must contain only digits: 2 4

@@ -18,13 +18,14 @@ jobs:
   java:
     name: Java 21
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
@@ -32,16 +33,17 @@ jobs:
       - name: Compile application and tests
         run: javac -d java/out java/src/SubnetCalculator.java java/test/SubnetCalculatorTest.java
 
-      - name: Run shared contract cases
+      - name: Run contract and CLI tests
         run: java -cp java/out SubnetCalculatorTest tests/cases.tsv
 
   cpp:
     name: C++20
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configure
         run: cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
@@ -49,24 +51,25 @@ jobs:
       - name: Build
         run: cmake --build cpp/build --config Release
 
-      - name: Run shared contract cases
+      - name: Run contract and CLI tests
         run: ctest --test-dir cpp/build --build-config Release --output-on-failure
 
   python:
     name: Python 3.12
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
       - name: Compile module
         run: python -m py_compile python/subnet_calculator.py python/test_subnet_calculator.py
 
-      - name: Run shared contract cases
+      - name: Run contract and CLI tests
         run: python -m unittest discover -s python -p "test_*.py" -v

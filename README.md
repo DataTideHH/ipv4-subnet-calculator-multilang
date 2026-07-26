@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang/actions/workflows/ci.yml/badge.svg)](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang/actions/workflows/ci.yml)
 
-**Java 21 · C++20 · Python 3.12 · IPv4 subnetting · contract testing · GitHub Actions · reproducible comparison**
+**Java 21 · C++20 · Python 3.12 · IPv4 subnetting · contract testing · CLI smoke testing · GitHub Actions**
 
 A focused terminal-based IPv4 subnet calculator implemented in three programming languages from one shared behavior specification and verified against one shared set of domain cases.
 
@@ -23,6 +23,7 @@ Each implementation follows the same contract:
 - support interactive, direct and help modes
 - handle `/0`, `/31` and `/32` correctly
 - return consistent exit codes
+- classify ordinary and oversized numeric range errors consistently
 - use no external runtime dependency
 
 The project deliberately excludes IPv6, VLSM planning, subnet splitting, a GUI, a web frontend, database storage and API endpoints.
@@ -33,9 +34,9 @@ The project deliberately excludes IPv6, VLSM planning, subnet splitting, a GUI, 
 
 | Implementation | Version / Standard | Result type | Test runner | Status |
 |---|---|---|---|---|
-| Java | Java 21 | Record | Plain Java contract runner | Implemented and tested |
-| C++ | C++20 | Struct | CTest executable | Implemented and tested |
-| Python | Python 3.12 | Frozen, slotted dataclass | `unittest` | Implemented and tested |
+| Java | Java 21 | Record | Plain Java CLI contract runner | Implemented and tested |
+| C++ | C++20 | Struct | CTest executable and CMake CLI script | Implemented and tested |
+| Python | Python 3.12 | Frozen, slotted dataclass | `unittest` and subprocess checks | Implemented and tested |
 
 All three versions use equivalent calculation rules, validation categories, output fields, special-case handling, terminal modes and exit behavior.
 
@@ -78,6 +79,8 @@ Note:              Standard subnet with network and broadcast addresses excluded
 ```
 
 The `/31` and `/32` cases use the dedicated host-range rules documented in the [behavior specification](docs/behavior-specification.md).
+
+The `/0` output is a mathematical calculation over the complete 32-bit IPv4 address space. It does not imply that all reported addresses are globally assignable to hosts; special-purpose and reserved ranges remain subject to their own standards and operational constraints.
 
 ---
 
@@ -149,7 +152,7 @@ py -3.12 python/subnet_calculator.py 192.168.10.42/24
 
 The language-neutral file [`tests/cases.tsv`](tests/cases.tsv) defines the expected results and validation failures used by every test runner.
 
-The current contract contains:
+The current contract contains seven valid and sixteen invalid cases covering:
 
 - standard `/24`, `/30` and `/16` calculations
 - the complete `/0` IPv4 address space
@@ -158,10 +161,27 @@ The current contract contains:
 - surrounding-whitespace handling
 - missing and repeated CIDR separators
 - empty, malformed, signed and out-of-range values
+- oversized numeric octets and prefixes
 - leading-zero rejection
 - whitespace inside the token
 
 Valid rows verify all result fields. Invalid rows verify the exact validation reason.
+
+### Cross-language bounded parsing
+
+Java and C++ use fixed-width integer parsers, while Python integers support arbitrary precision. To keep the contract independent from those implementation differences, all three versions:
+
+1. verify ASCII decimal digits
+2. compare the numeric text with the allowed upper bound
+3. reject oversized values with the shared out-of-range message
+4. convert only values already known to fit
+
+This avoids parser-overflow differences for inputs such as:
+
+```text
+192.168.1.999999999999999999999/24
+192.168.1.10/999999999999999999999
+```
 
 ### Run Java tests
 
@@ -184,6 +204,13 @@ ctest --test-dir cpp/build --build-config Release --output-on-failure
 python -m unittest discover -s python -p "test_*.py" -v
 ```
 
+Every language verifies the shared contract and the same four CLI smoke modes:
+
+- valid direct execution
+- invalid direct execution
+- help mode
+- incorrect usage with too many arguments
+
 See [Testing and CI](docs/testing-and-ci.md) for the verification design.
 
 ---
@@ -196,7 +223,7 @@ The `CI` workflow runs on pull requests, pushes to `main` and manual dispatches.
 - `C++20`
 - `Python 3.12`
 
-The jobs use Java 21, a C++20 CMake build and Python 3.12 on GitHub-hosted Linux runners. No third-party test framework is required.
+The jobs use Java 21, a C++20 CMake build and Python 3.12 on GitHub-hosted Linux runners. The workflow uses read-only repository permissions, cancels superseded runs, applies per-job timeouts and uses current official action major versions.
 
 ---
 
@@ -209,9 +236,11 @@ The calculator rejects:
 - empty IPv4 octets
 - non-ASCII or non-decimal octets
 - octets outside `0-255`
+- oversized digit-only octets
 - leading zeros in multi-digit octets
 - empty, signed or non-decimal prefixes
 - prefixes outside `0-32`
+- oversized digit-only prefixes
 - whitespace inside the token
 
 Errors identify the concrete validation category rather than returning one generic invalid-input message.
@@ -240,7 +269,9 @@ ipv4-subnet-calculator-multilang/
 │   ├── src/
 │   │   ├── main.cpp
 │   │   └── subnet.cpp
-│   └── tests/subnet_test.cpp
+│   └── tests/
+│       ├── subnet_test.cpp
+│       └── cli_smoke_tests.cmake
 ├── python/
 │   ├── README.md
 │   ├── subnet_calculator.py
@@ -262,7 +293,18 @@ ipv4-subnet-calculator-multilang/
 | 2 | Java and C++ consolidation with interactive mode | Complete |
 | 3 | Python implementation | Complete |
 | 4 | Shared tests, language-specific runners and GitHub Actions | Complete |
-| 5 | Portfolio integration, related-project links and archival review | In progress |
+| 5 | Portfolio integration, hardening and related-project links | Complete for current scope |
+
+---
+
+## Official References and Learning Resources
+
+- [RFC 3021: Using 31-Bit Prefixes on IPv4 Point-to-Point Links](https://www.rfc-editor.org/rfc/rfc3021.html)
+- [RFC 4632: Classless Inter-domain Routing (CIDR)](https://www.rfc-editor.org/rfc/rfc4632.html)
+- [Core Internet Standards and RFC Editor](https://github.com/DataTideHH/open-learning-resources/tree/main/resources/networking/core-internet-standards-rfc-editor)
+- [GitHub Actions Documentation](https://github.com/DataTideHH/open-learning-resources/tree/main/resources/git/github-actions-documentation)
+
+The RFC links are standards-oriented references. This learning implementation is not intended to replace a mature IP-address library.
 
 ---
 
