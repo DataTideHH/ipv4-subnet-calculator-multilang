@@ -5,9 +5,11 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import traceback
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+DIAGNOSTICS_PATH = REPOSITORY_ROOT / "parity-diagnostics.txt"
 
 
 @dataclass(frozen=True)
@@ -222,9 +224,15 @@ def verify_interactive_cases(programs: dict[str, list[str]]) -> None:
 
 
 def main() -> int:
-    programs = commands()
-    verify_direct_cases(programs)
-    verify_interactive_cases(programs)
+    try:
+        programs = commands()
+        verify_direct_cases(programs)
+        verify_interactive_cases(programs)
+    except Exception:
+        DIAGNOSTICS_PATH.write_text(traceback.format_exc(), encoding="utf-8")
+        raise
+
+    DIAGNOSTICS_PATH.unlink(missing_ok=True)
     print(f"Cross-language direct parity cases passed: {len(DIRECT_CASES)}")
     print(f"Cross-language interactive parity cases passed: {len(INTERACTIVE_CASES)}")
     return 0
