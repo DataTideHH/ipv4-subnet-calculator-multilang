@@ -130,7 +130,7 @@ def commands() -> dict[str, list[str]]:
             "-Dstderr.encoding=UTF-8",
             "-cp",
             str(REPOSITORY_ROOT / "java" / "out"),
-            "SubnetCalculator",
+            "Utf8JavaLauncher",
         ],
         "C++20": [str(cpp_program())],
         "Python 3.12": [
