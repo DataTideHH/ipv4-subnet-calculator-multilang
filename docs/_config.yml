@@ -1,0 +1,21 @@
+theme: jekyll-theme-cayman
+title: IPv4 Subnet Calculator Multilang
+description: Java, C++ and Python implementations of the same terminal-based IPv4 subnet calculator
+show_downloads: false
+repository: DataTideHH/ipv4-subnet-calculator-multilang
+url: https://datatidehh.github.io
+baseurl: /ipv4-subnet-calculator-multilang
+lang: en
+
+plugins:
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: true
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
