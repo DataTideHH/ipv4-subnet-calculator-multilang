@@ -6,7 +6,7 @@ import subprocess
 import sys
 import unittest
 
-from subnet_calculator import calculate
+from subnet_calculator import calculate, trim_ascii_whitespace
 
 
 CASES_PATH = Path(__file__).resolve().parents[1] / "tests" / "cases.tsv"
@@ -31,7 +31,7 @@ class SubnetCalculatorContractTest(unittest.TestCase):
             with self.subTest(name=name):
                 if kind == "valid":
                     result = calculate(input_text)
-                    trimmed_input = input_text.strip()
+                    trimmed_input = trim_ascii_whitespace(input_text)
                     input_ip, prefix_text = trimmed_input.split("/", maxsplit=1)
 
                     self.assertEqual(input_ip, result.input_ip)
