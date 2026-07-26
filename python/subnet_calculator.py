@@ -171,12 +171,7 @@ def parse_prefix(prefix_text: str) -> int:
     if not is_ascii_digits(prefix_text):
         raise ValueError(f"CIDR prefix must contain only digits: {prefix_text}")
 
-    prefix = int(prefix_text)
-
-    if prefix < 0 or prefix > 32:
-        raise ValueError(f"CIDR prefix out of range (0-32): {prefix}")
-
-    return prefix
+    return parse_bounded_decimal(prefix_text, "CIDR prefix", 32)
 
 
 def parse_ipv4(ip_text: str) -> int:
@@ -197,14 +192,24 @@ def parse_ipv4(ip_text: str) -> int:
         if len(part) > 1 and part[0] == "0":
             raise ValueError(f"IPv4 octet must not have leading zeros: {part}")
 
-        octet = int(part)
-
-        if octet < 0 or octet > 255:
-            raise ValueError(f"IPv4 octet out of range (0-255): {octet}")
-
+        octet = parse_bounded_decimal(part, "IPv4 octet", 255)
         result = (result << 8) | octet
 
     return result
+
+
+def parse_bounded_decimal(text: str, label: str, maximum: int) -> int:
+    normalized = text.lstrip("0") or "0"
+    maximum_text = str(maximum)
+
+    exceeds_maximum = len(normalized) > len(maximum_text) or (
+        len(normalized) == len(maximum_text) and normalized > maximum_text
+    )
+
+    if exceeds_maximum:
+        raise ValueError(f"{label} out of range (0-{maximum}): {text}")
+
+    return int(normalized)
 
 
 def is_ascii_digits(text: str) -> bool:
