@@ -8,7 +8,7 @@ From the repository root:
 
 ```text
 cmake -S cpp -B cpp/build
-cmake --build cpp/build
+cmake --build cpp/build --config Release
 ```
 
 ## Interactive mode
@@ -19,10 +19,10 @@ On Linux and macOS:
 ./cpp/build/ipv4_subnet_calculator
 ```
 
-With a multi-configuration generator on Windows, the executable is usually located in a configuration subdirectory, for example:
+With a multi-configuration generator on Windows, the executable is usually located in a configuration subdirectory:
 
 ```text
-.\cpp\build\Debug\ipv4_subnet_calculator.exe
+.\cpp\build\Release\ipv4_subnet_calculator.exe
 ```
 
 Enter IPv4/CIDR values repeatedly and use `q` or `Q` to quit.
@@ -35,10 +35,10 @@ Linux and macOS:
 ./cpp/build/ipv4_subnet_calculator 192.168.10.42/24
 ```
 
-Windows example:
+Windows release example:
 
 ```text
-.\cpp\build\Debug\ipv4_subnet_calculator.exe 192.168.10.42/24
+.\cpp\build\Release\ipv4_subnet_calculator.exe 192.168.10.42/24
 ```
 
 ## Help
@@ -47,11 +47,27 @@ Windows example:
 <executable> --help
 ```
 
+## Tests
+
+Configure and build with CTest enabled:
+
+```text
+cmake -S cpp -B cpp/build -DBUILD_TESTING=ON
+cmake --build cpp/build --config Release
+```
+
+Run the shared contract and CLI smoke tests:
+
+```text
+ctest --test-dir cpp/build --build-config Release --output-on-failure
+```
+
 ## Implementation notes
 
 - uses a C++ struct for the structured calculation result
 - separates calculation, validation and terminal interaction
 - reports concrete validation errors through `std::invalid_argument`
+- compares bounded decimal text before fixed-width conversion so oversized numeric values produce the same range errors as Java and Python
 - uses `std::uint32_t` for IPv4 values and `std::uint64_t` for address counts
 - has no external runtime dependencies
 - follows `docs/behavior-specification.md`
