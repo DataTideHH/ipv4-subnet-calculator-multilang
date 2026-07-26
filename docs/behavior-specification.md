@@ -7,7 +7,7 @@ description: Shared input, validation, calculation and output rules for all impl
 
 This document defines the common observable behavior for the Java, C++ and Python implementations.
 
-The specification is normative for the first project version. Language-specific implementation details may differ, but user-visible behavior should remain equivalent.
+The specification is normative for the current project version. Language-specific implementation details may differ, but user-visible behavior should remain equivalent.
 
 ## 1. Supported scope
 
@@ -110,9 +110,12 @@ Invalid examples:
 192.168.1.10.5
 192..1.10
 192.168.1.300
+192.168.1.999999999999999999999
 192.168.001.10
 192.168.a.10
 ```
+
+Digit-only octets are compared with the upper bound as decimal text before conversion. This prevents fixed-width parser overflow and ensures that Java, C++ and Python classify arbitrarily long numeric octets consistently as out of range.
 
 ## 5. CIDR validation
 
@@ -141,8 +144,11 @@ Invalid examples:
 /-1
 /24.0
 /33
+/999999999999999999999
 /abc
 ```
+
+Digit-only prefixes are compared with the upper bound as decimal text before conversion. Oversized values therefore produce the same out-of-range category in every implementation.
 
 ## 6. Calculated values
 
@@ -160,7 +166,9 @@ For valid input, the calculator returns:
 - last usable host
 - explanatory note
 
-The calculations use 32-bit IPv4 values.
+The calculations use 32-bit IPv4 values. Address counts use a representation capable of storing `2^32` so the complete `/0` space can be represented without overflow.
+
+The `/0` result is a mathematical calculation over the complete 32-bit IPv4 address space. It does not claim that all reported addresses are globally assignable to hosts; special-purpose, reserved and operationally constrained ranges remain subject to their own standards.
 
 ## 7. Standard subnet behavior
 
@@ -192,6 +200,8 @@ The note is:
 ```text
 /31 subnet: both addresses are usable for point-to-point links.
 ```
+
+This behavior follows RFC 3021 for point-to-point links.
 
 ## 9. `/32` behavior
 
@@ -230,7 +240,7 @@ The labels should be aligned for readable terminal output. Minor spacing differe
 
 ## 11. Error behavior
 
-Errors should identify the validation category when practical.
+Errors identify the validation category and shared contract cases verify the exact message.
 
 Examples include:
 
@@ -241,13 +251,13 @@ Error: IPv4 must have exactly four octets.
 Error: IPv4 octet is empty.
 Error: IPv4 octet must contain only digits.
 Error: IPv4 octet out of range (0-255): 300
+Error: IPv4 octet out of range (0-255): 999999999999999999999
 Error: IPv4 octet must not have leading zeros: 001
 Error: CIDR prefix is empty.
 Error: CIDR prefix must contain only digits.
 Error: CIDR prefix out of range (0-32): 33
+Error: CIDR prefix out of range (0-32): 999999999999999999999
 ```
-
-The exact punctuation may differ slightly between languages, but equivalent invalid inputs should be rejected for the same reason.
 
 ## 12. Implementation constraints
 
@@ -259,8 +269,9 @@ Each implementation should:
 - keep comments limited to non-obvious behavior
 - use English identifiers, comments and output
 - remain small enough to explain without framework-specific knowledge
+- preserve the shared validation categories across language-specific numeric representations
 
-## 13. Initial shared test cases
+## 13. Shared test cases
 
 ### Valid cases
 
@@ -272,17 +283,35 @@ Each implementation should:
 | `0.0.0.0/0` | complete IPv4 address space |
 | `192.0.2.10/31` | point-to-point special case |
 | `203.0.113.15/32` | single-host special case |
+| ` 192.168.10.42/24 ` | surrounding-whitespace handling |
 
 ### Invalid cases
 
 | Input | Expected category |
 |---|---|
+| empty input | empty input |
 | `192.168.1.10` | missing CIDR separator |
 | `192.168.1.10/24/1` | multiple separators |
+| `/24` | empty IPv4 address |
 | `192.168.1.10/` | empty prefix |
+| `192.168.1.10/abc` | non-decimal prefix |
 | `192.168.1.10/33` | prefix out of range |
-| `192.168.1.300/24` | octet out of range |
-| `192.168.001.10/24` | leading zero |
+| `192.168.1.10/999999999999999999999` | oversized prefix out of range |
 | `192.168.1/24` | incorrect octet count |
 | `192..1.10/24` | empty octet |
-| `abc/24` | invalid IPv4 address |
+| `192.168.a.10/24` | non-decimal octet |
+| `192.168.1.300/24` | octet out of range |
+| `192.168.1.999999999999999999999/24` | oversized octet out of range |
+| `192.168.001.10/24` | leading zero |
+| `192.168.1.10/+24` | signed prefix |
+| `192.168.1.10/2 4` | internal whitespace |
+
+The executable test data is maintained in [`tests/cases.tsv`](../tests/cases.tsv).
+
+## 14. Standards and learning references
+
+- [RFC 3021: Using 31-Bit Prefixes on IPv4 Point-to-Point Links](https://www.rfc-editor.org/rfc/rfc3021.html)
+- [RFC 4632: Classless Inter-domain Routing (CIDR)](https://www.rfc-editor.org/rfc/rfc4632.html)
+- [Core Internet Standards and RFC Editor](https://github.com/DataTideHH/open-learning-resources/tree/main/resources/networking/core-internet-standards-rfc-editor) in `open-learning-resources`
+
+The RFC links are normative or standards-oriented references. The project remains a learning implementation rather than a replacement for a mature IP-address library.
