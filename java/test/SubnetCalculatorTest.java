@@ -51,7 +51,7 @@ public class SubnetCalculatorTest {
 
         assertEquals(name + " exit code", 0, result.exitCode());
 
-        String trimmedInput = input.trim();
+        String trimmedInput = trimAsciiWhitespace(input);
         int separator = trimmedInput.indexOf('/');
         String inputIp = trimmedInput.substring(0, separator);
         String prefix = trimmedInput.substring(separator);
@@ -124,6 +124,30 @@ public class SubnetCalculatorTest {
         String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         int exitCode = process.waitFor();
         return new ProcessResult(exitCode, output);
+    }
+
+    private static String trimAsciiWhitespace(String text) {
+        int start = 0;
+        int end = text.length();
+
+        while (start < end && isAsciiWhitespace(text.charAt(start))) {
+            start++;
+        }
+
+        while (end > start && isAsciiWhitespace(text.charAt(end - 1))) {
+            end--;
+        }
+
+        return text.substring(start, end);
+    }
+
+    private static boolean isAsciiWhitespace(char character) {
+        return character == ' '
+                || character == '\t'
+                || character == '\n'
+                || character == '\r'
+                || character == '\f'
+                || character == 0x0B;
     }
 
     private static Map<String, String> parseFields(String output) {
