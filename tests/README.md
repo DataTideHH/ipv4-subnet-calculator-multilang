@@ -41,8 +41,12 @@ The combined-error cases confirm that an empty prefix is reported before detaile
 - non-breaking and ideographic spaces
 - allowed ASCII tab and carriage-return trimming
 - interactive quit handling
-- direct comparison of complete `stdout`, `stderr` and exit codes
+- comparison of exit codes and process streams
 
-The parity runner expects Java classes under `java/out` and the C++ executable under `cpp/build`. It uses the active Python interpreter for the Python implementation.
+On Linux, the runner requires complete byte equality for all direct and interactive cases. On Windows, complete byte equality remains required for ASCII-safe direct cases and interactive cases. The two non-ASCII command-line argument cases are verified semantically per runtime because the Windows Java launcher can replace an unrepresentable command-line character before the Java application receives it.
+
+The runner captures standard output and standard error as bytes. It expects Java classes under `java/out` and the C++ executable under `cpp/build`, and it uses the active Python interpreter for the Python implementation. Compile `java/test/Utf8JavaLauncher.java` together with the Java application before running parity tests.
+
+A failure writes `parity-diagnostics.txt`; successful runs remove the file. The diagnostic file is ignored by Git and may be uploaded by CI when a Windows parity run fails.
 
 Language-specific runners intentionally use only their standard libraries. Separate CLI smoke tests verify valid direct mode, invalid direct mode, help mode and incorrect usage.
