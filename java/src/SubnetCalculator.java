@@ -59,7 +59,7 @@ public class SubnetCalculator {
                 return;
             }
 
-            String input = scanner.nextLine().trim();
+            String input = trimAsciiWhitespace(scanner.nextLine());
 
             if (input.equalsIgnoreCase("q")) {
                 return;
@@ -122,7 +122,7 @@ public class SubnetCalculator {
             throw new IllegalArgumentException("Input is missing.");
         }
 
-        String trimmed = cidr.trim();
+        String trimmed = trimAsciiWhitespace(cidr);
 
         if (trimmed.isEmpty()) {
             throw new IllegalArgumentException("Input is empty.");
@@ -203,6 +203,11 @@ public class SubnetCalculator {
                     "CIDR prefix must contain only digits: " + prefixText);
         }
 
+        if (prefixText.length() > 1 && prefixText.charAt(0) == '0') {
+            throw new IllegalArgumentException(
+                    "CIDR prefix must not have leading zeros: " + prefixText);
+        }
+
         return parseBoundedDecimal(prefixText, "CIDR prefix", 32);
     }
 
@@ -272,6 +277,30 @@ public class SubnetCalculator {
         }
 
         return true;
+    }
+
+    private static String trimAsciiWhitespace(String text) {
+        int start = 0;
+        int end = text.length();
+
+        while (start < end && isAsciiWhitespace(text.charAt(start))) {
+            start++;
+        }
+
+        while (end > start && isAsciiWhitespace(text.charAt(end - 1))) {
+            end--;
+        }
+
+        return text.substring(start, end);
+    }
+
+    private static boolean isAsciiWhitespace(char character) {
+        return character == ' '
+                || character == '\t'
+                || character == '\n'
+                || character == '\r'
+                || character == '\f'
+                || character == 0x0B;
     }
 
     private static long prefixToMask(int prefix) {

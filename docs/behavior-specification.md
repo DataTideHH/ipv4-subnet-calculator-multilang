@@ -7,7 +7,7 @@ description: Shared input, validation, calculation and output rules for all impl
 
 This document defines the common observable behavior for the Java, C++ and Python implementations.
 
-The specification is normative for the current project version. Language-specific implementation details may differ, but user-visible behavior should remain equivalent.
+The specification is normative for the current project version. Language-specific implementation details may differ, but user-visible output, error classification and exit behavior must remain equivalent.
 
 ## 1. Supported scope
 
@@ -33,9 +33,24 @@ Examples:
 203.0.113.15/32
 ```
 
-Leading and trailing whitespace around the complete input may be ignored.
+### 2.1 Outer whitespace
+
+Only these six ASCII characters may be ignored at the beginning or end of the complete input:
+
+| Character | Code point |
+|---|---|
+| space | U+0020 |
+| horizontal tab | U+0009 |
+| line feed | U+000A |
+| carriage return | U+000D |
+| form feed | U+000C |
+| vertical tab | U+000B |
+
+No other control character or Unicode whitespace character is trimmed. A non-breaking space (`U+00A0`), ideographic space (`U+3000`) or another non-listed character remains part of the token and is rejected by the ordinary IPv4/CIDR validation rules.
 
 Whitespace inside the IPv4 address or CIDR prefix is invalid.
+
+The same ASCII trimming rule applies to direct input, interactive input and interactive `q` / `Q` quit detection.
 
 ## 3. Program modes
 
@@ -54,25 +69,15 @@ Enter IPv4/CIDR or q to quit:
 
 After a successful calculation or validation error, the prompt is displayed again.
 
-The session ends when the user enters:
+The session ends when the ASCII-trimmed input equals `q` or `Q`. Unicode whitespace around `q` is not ignored. An end-of-file condition also ends the session normally.
 
-```text
-q
-```
-
-The comparison should be case-insensitive, so `q` and `Q` both quit.
-
-An end-of-file condition also ends the session normally.
-
-An empty line should not be treated as a subnet. It should display a short validation message and return to the prompt.
+An empty line is not treated as a subnet. It displays a short validation message and returns to the prompt.
 
 ### 3.2 Direct command-line mode
 
 When exactly one subnet argument is provided, the program performs one calculation and exits.
 
-A successful calculation returns exit code `0`.
-
-Invalid input or incorrect usage returns exit code `1`.
+A successful calculation returns exit code `0`. Invalid input or incorrect usage returns exit code `1`.
 
 ### 3.3 Help mode
 
@@ -83,7 +88,31 @@ The following options display usage information and return exit code `0`:
 --help
 ```
 
-## 4. IPv4 validation
+## 4. Structural validation and error priority
+
+After outer ASCII whitespace is removed, validation proceeds in this order:
+
+1. reject empty input
+2. require exactly one `/` separator
+3. reject an empty IPv4 component
+4. reject an empty CIDR-prefix component
+5. validate the IPv4 component in detail
+6. validate the CIDR-prefix component in detail
+
+This order is observable and therefore part of the contract. When multiple defects occur in one input, the earliest rule determines the error.
+
+Examples:
+
+```text
+192.168.1.999/   -> CIDR prefix is empty.
+1.2.3/           -> CIDR prefix is empty.
+1.2.3.a/         -> CIDR prefix is empty.
+192.168.001.1/   -> CIDR prefix is empty.
+```
+
+The empty prefix is reported before detailed IPv4 validation in all four examples.
+
+## 5. IPv4 validation
 
 A valid IPv4 address contains exactly four decimal octets separated by dots.
 
@@ -117,7 +146,7 @@ Invalid examples:
 
 Digit-only octets are compared with the upper bound as decimal text before conversion. This prevents fixed-width parser overflow and ensures that Java, C++ and Python classify arbitrarily long numeric octets consistently as out of range.
 
-## 5. CIDR validation
+## 6. CIDR validation
 
 The IPv4 address and prefix must be separated by exactly one `/` character.
 
@@ -126,6 +155,7 @@ The prefix must:
 - contain at least one digit
 - contain only ASCII decimal digits `0-9`
 - represent an integer from `0` through `32`
+- not contain a leading zero when it has more than one digit
 
 Valid examples:
 
@@ -143,14 +173,19 @@ Invalid examples:
 /
 /-1
 /24.0
+/00
+/08
+/0032
 /33
 /999999999999999999999
 /abc
 ```
 
+A single `/0` is valid. Multi-digit forms such as `/00`, `/08` and `/0032` are rejected rather than normalized.
+
 Digit-only prefixes are compared with the upper bound as decimal text before conversion. Oversized values therefore produce the same out-of-range category in every implementation.
 
-## 6. Calculated values
+## 7. Calculated values
 
 For valid input, the calculator returns:
 
@@ -168,9 +203,9 @@ For valid input, the calculator returns:
 
 The calculations use 32-bit IPv4 values. Address counts use a representation capable of storing `2^32` so the complete `/0` space can be represented without overflow.
 
-The `/0` result is a mathematical calculation over the complete 32-bit IPv4 address space. It does not claim that all reported addresses are globally assignable to hosts; special-purpose, reserved and operationally constrained ranges remain subject to their own standards.
+The `/0` result is a mathematical calculation over the complete 32-bit IPv4 address space. It does not claim that all reported addresses are globally assignable to hosts.
 
-## 7. Standard subnet behavior
+## 8. Standard subnet behavior
 
 For prefixes `/0` through `/30`:
 
@@ -186,7 +221,7 @@ The note is:
 Standard subnet with network and broadcast addresses excluded.
 ```
 
-## 8. `/31` behavior
+## 9. `/31` behavior
 
 For `/31`:
 
@@ -203,7 +238,7 @@ The note is:
 
 This behavior follows RFC 3021 for point-to-point links.
 
-## 9. `/32` behavior
+## 10. `/32` behavior
 
 For `/32`:
 
@@ -218,7 +253,7 @@ The note is:
 /32 host route: single usable address.
 ```
 
-## 10. Output format
+## 11. Output format
 
 The field order is fixed:
 
@@ -236,11 +271,11 @@ Last usable host:
 Note:
 ```
 
-The labels should be aligned for readable terminal output. Minor spacing differences caused by a platform are acceptable, but field names, values and order must remain consistent.
+The labels should be aligned for readable terminal output. Field names, values and order must remain consistent.
 
-## 11. Error behavior
+## 12. Error behavior
 
-Errors identify the validation category and shared contract cases verify the exact message.
+Errors identify the validation category. Shared contract cases verify exact messages, while the cross-language parity suite compares complete `stdout`, `stderr` and exit codes.
 
 Examples include:
 
@@ -251,67 +286,37 @@ Error: IPv4 must have exactly four octets.
 Error: IPv4 octet is empty.
 Error: IPv4 octet must contain only digits.
 Error: IPv4 octet out of range (0-255): 300
-Error: IPv4 octet out of range (0-255): 999999999999999999999
 Error: IPv4 octet must not have leading zeros: 001
 Error: CIDR prefix is empty.
 Error: CIDR prefix must contain only digits.
+Error: CIDR prefix must not have leading zeros: 0032
 Error: CIDR prefix out of range (0-32): 33
-Error: CIDR prefix out of range (0-32): 999999999999999999999
 ```
 
-## 12. Implementation constraints
+## 13. Implementation constraints
 
 Each implementation should:
 
 - separate calculation logic from terminal interaction
 - return a structured calculation result
 - avoid external runtime dependencies
+- use the explicit six-character ASCII trim rule
+- use ASCII-only digit validation
+- preserve the shared validation order and categories
 - keep comments limited to non-obvious behavior
 - use English identifiers, comments and output
 - remain small enough to explain without framework-specific knowledge
-- preserve the shared validation categories across language-specific numeric representations
 
-## 13. Shared test cases
+## 14. Automated verification
 
-### Valid cases
+The executable data in [`tests/cases.tsv`](../tests/cases.tsv) contains seven valid and twenty-three invalid contract cases.
 
-| Input | Purpose |
-|---|---|
-| `192.168.10.42/24` | standard private subnet |
-| `10.0.0.5/30` | small standard subnet |
-| `172.16.1.1/16` | larger private subnet |
-| `0.0.0.0/0` | complete IPv4 address space |
-| `192.0.2.10/31` | point-to-point special case |
-| `203.0.113.15/32` | single-host special case |
-| ` 192.168.10.42/24 ` | surrounding-whitespace handling |
+The invalid cases include combined-error inputs that verify validation priority and three leading-zero prefix forms. The separate [`tests/cross_language_parity.py`](../tests/cross_language_parity.py) suite adds control-character, Unicode-whitespace, direct-mode and interactive-mode probes and compares all three implementations at the process boundary.
 
-### Invalid cases
-
-| Input | Expected category |
-|---|---|
-| empty input | empty input |
-| `192.168.1.10` | missing CIDR separator |
-| `192.168.1.10/24/1` | multiple separators |
-| `/24` | empty IPv4 address |
-| `192.168.1.10/` | empty prefix |
-| `192.168.1.10/abc` | non-decimal prefix |
-| `192.168.1.10/33` | prefix out of range |
-| `192.168.1.10/999999999999999999999` | oversized prefix out of range |
-| `192.168.1/24` | incorrect octet count |
-| `192..1.10/24` | empty octet |
-| `192.168.a.10/24` | non-decimal octet |
-| `192.168.1.300/24` | octet out of range |
-| `192.168.1.999999999999999999999/24` | oversized octet out of range |
-| `192.168.001.10/24` | leading zero |
-| `192.168.1.10/+24` | signed prefix |
-| `192.168.1.10/2 4` | internal whitespace |
-
-The executable test data is maintained in [`tests/cases.tsv`](../tests/cases.tsv).
-
-## 14. Standards and learning references
+## 15. Standards and learning references
 
 - [RFC 3021: Using 31-Bit Prefixes on IPv4 Point-to-Point Links](https://www.rfc-editor.org/rfc/rfc3021.html)
 - [RFC 4632: Classless Inter-domain Routing (CIDR)](https://www.rfc-editor.org/rfc/rfc4632.html)
 - [Core Internet Standards and RFC Editor](https://github.com/DataTideHH/open-learning-resources/tree/main/resources/networking/core-internet-standards-rfc-editor) in `open-learning-resources`
 
-The RFC links are normative or standards-oriented references. The project remains a learning implementation rather than a replacement for a mature IP-address library.
+The project remains a learning implementation rather than a replacement for a mature IP-address library.

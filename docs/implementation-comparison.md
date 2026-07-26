@@ -16,6 +16,9 @@ All implementations provide:
 - `-h` and `--help`
 - the same output fields and ordering
 - the same `/0`, `/31` and `/32` behavior
+- the same six-character ASCII outer-whitespace rule
+- the same structural validation priority
+- rejection of multi-digit CIDR prefixes with leading zeros
 - concrete validation errors
 - exit code `0` for successful direct execution
 - exit code `1` for invalid direct input or incorrect usage
@@ -33,25 +36,43 @@ All implementations provide:
 | Validation errors | `IllegalArgumentException` | `std::invalid_argument` | `ValueError` |
 | IPv4 storage | 64-bit `long` calculation values | `std::uint32_t` | Arbitrary-precision `int`, masked to 32 bits |
 | Address count | 64-bit `long` | `std::uint64_t` | `int` |
-| Bounded parsing | Text comparison before `int` conversion | Text comparison before fixed-width conversion | Text comparison before `int` conversion |
+| Outer trim | explicit ASCII helper | explicit ASCII helper | `strip(" \t\n\r\f\v")` helper |
+| Bounded parsing | text comparison before conversion | text comparison before conversion | text comparison before conversion |
 | Test runner | Plain Java process-based runner | CTest executable plus CMake CLI script | `unittest` plus subprocess checks |
 | Shared cases | `tests/cases.tsv` | `tests/cases.tsv` | `tests/cases.tsv` |
-| CLI smoke modes | valid, invalid, help, incorrect usage | valid, invalid, help, incorrect usage | valid, invalid, help, incorrect usage |
+| Process parity | `tests/cross_language_parity.py` | `tests/cross_language_parity.py` | `tests/cross_language_parity.py` |
 | CI check | `Java 21` | `C++20` | `Python 3.12` |
+
+## Explicit ASCII trimming
+
+Language defaults are intentionally not used as the contract:
+
+- Java `String.trim()` accepts a broader legacy control-character range than the project requires.
+- Python `str.strip()` without arguments is Unicode-aware and removes characters that C++ would retain.
+- C++ does not provide one universal trim operation with the desired semantics.
+
+Each implementation therefore removes only ASCII space, tab, line feed, carriage return, form feed and vertical tab. This rule also applies to interactive input and quit handling.
+
+## Validation priority
+
+After exactly one slash is found, both structural components are checked before detailed parsing:
+
+1. empty IPv4 component
+2. empty prefix component
+3. detailed IPv4 validation
+4. detailed prefix validation
+
+This makes mixed-invalid inputs deterministic. For example, `192.168.1.999/` reports an empty prefix in every language rather than allowing the C++ implementation to fail first on the invalid octet.
+
+## Prefix representation
+
+A single `/0` is valid. Multi-digit prefixes with a leading zero, including `/00`, `/08` and `/0032`, are rejected. This removes the earlier asymmetry between strict IPv4-octet representation and implicitly normalized prefix representation.
 
 ## Java design
 
 The Java version keeps the beginner-readable implementation in one source file. A record stores the calculated values, while dedicated methods handle modes, input, output, validation and subnet arithmetic.
 
-The Java contract runner executes the real command-line class in child JVMs. This verifies:
-
-- public terminal output
-- direct-mode exit codes
-- exact validation messages
-- all shared valid and invalid domain cases
-- help and incorrect-usage behavior
-
-Using the public CLI boundary avoids exposing internal methods solely for testing.
+The Java contract runner executes the real command-line class in child JVMs. This verifies public terminal output, direct-mode exit codes, exact validation messages, shared domain cases, help and incorrect-usage behavior.
 
 ## C++ design
 
@@ -65,70 +86,43 @@ cpp/include/subnet.h
 
 The `Calculation` struct represents the result. IPv4 values use `std::uint32_t`; address counts use `std::uint64_t` so `/0` can represent `2^32` addresses.
 
-The C++ contract executable links directly against the calculation module and verifies every result field and `std::invalid_argument` message. A separate CMake script executes the built CLI and verifies the four shared smoke modes. CTest integrates both layers into local builds and GitHub Actions.
+The C++ contract executable links directly against the calculation module. A separate CMake script executes the CLI smoke modes.
 
 ## Python design
 
 The Python version keeps the implementation in one module and represents results with a frozen, slotted `dataclass`.
 
-The standard-library `unittest` suite verifies the shared calculation and validation cases. Subprocess checks cover valid and invalid direct mode, help and incorrect usage.
+The standard-library `unittest` suite verifies shared calculation and validation cases. Subprocess checks cover valid and invalid direct mode, help and incorrect usage.
 
 The explicit ASCII digit check matches the specification rather than Python's broader Unicode-aware `str.isdigit()` behavior.
 
 ## Cross-language bounded parsing
 
-Fixed-width integer parsers can overflow before an application reaches its intended range check. Python integers behave differently because they support arbitrary precision.
-
-The implementations therefore follow the same sequence:
+The implementations follow the same numeric sequence:
 
 1. verify that the token contains only ASCII digits
-2. normalize insignificant leading zeros for comparison
+2. reject a forbidden leading-zero representation where applicable
 3. compare the decimal text with `255` or `32`
 4. reject oversized values with the shared out-of-range message
 5. convert only values already known to fit
 
 This keeps the domain contract independent from language-specific integer behavior.
 
-## Shared contract design
+## Shared contract and parity design
 
-The tab-separated file `tests/cases.tsv` is intentionally simple enough to parse without third-party libraries in all three languages.
+The tab-separated file `tests/cases.tsv` is simple enough to parse without third-party libraries in all three languages. It defines seven valid and twenty-three invalid cases.
 
-Valid rows define:
+The parity runner then executes the real programs with control-character, Unicode-whitespace, validation-priority and interactive-mode inputs. It compares complete `stdout`, `stderr` and exit codes rather than only checking selected message fragments.
 
-- subnet and wildcard masks
-- network and broadcast addresses
-- total and usable address counts
-- first and last usable hosts
-- the explanatory note
-
-Invalid rows define the exact expected validation message.
-
-This makes the domain expectations independent from any one implementation language.
-
-## Deliberate differences
-
-Equivalent behavior does not require identical source code:
-
-- Java tests the public CLI through child JVMs.
-- C++ tests the reusable calculation module directly and adds a separate CLI script.
-- Python combines direct function tests with subprocess checks.
-- Java and Python remain single-file applications because the program is small.
-- C++ keeps a header/source split because that is natural for the compiled module boundary.
+Equivalent behavior does not require identical source code, but it does require identical observable results at the command-line boundary.
 
 ## Verification status
 
-The automated contract covers:
+The GitHub Actions workflow runs four checks independently:
 
-- standard `/24`, `/30` and `/16` subnet output
-- `/0`
-- `/31`
-- `/32`
-- surrounding-whitespace trimming
-- malformed separators
-- malformed octet counts
-- empty and non-decimal values
-- signs and internal whitespace
-- ordinary and oversized out-of-range values
-- leading zeros
+- `Java 21`
+- `C++20`
+- `Python 3.12`
+- `Cross-language parity`
 
-The GitHub Actions workflow runs all three language checks independently on pull requests and pushes to `main`.
+This separates implementation-specific failures from cross-language conformance failures.

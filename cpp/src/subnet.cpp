@@ -10,7 +10,7 @@ namespace subnet {
 
 namespace {
 
-std::string_view trim(std::string_view text) {
+std::string_view trim_ascii_whitespace(std::string_view text) {
     const auto first = text.find_first_not_of(" \t\n\r\f\v");
 
     if (first == std::string_view::npos) {
@@ -86,6 +86,11 @@ int parse_prefix(std::string_view prefix_text) {
             "CIDR prefix must contain only digits: " + std::string(prefix_text));
     }
 
+    if (prefix_text.size() > 1 && prefix_text.front() == '0') {
+        throw std::invalid_argument(
+            "CIDR prefix must not have leading zeros: " + std::string(prefix_text));
+    }
+
     return parse_bounded_decimal(prefix_text, "CIDR prefix", 32);
 }
 
@@ -145,7 +150,7 @@ std::string to_ipv4(std::uint32_t value) {
 }
 
 Calculation calculate(std::string_view cidr) {
-    cidr = trim(cidr);
+    cidr = trim_ascii_whitespace(cidr);
 
     if (cidr.empty()) {
         throw std::invalid_argument("Input is empty.");
@@ -167,6 +172,10 @@ Calculation calculate(std::string_view cidr) {
 
     if (ip_text.empty()) {
         throw std::invalid_argument("IPv4 address is empty.");
+    }
+
+    if (prefix_text.empty()) {
+        throw std::invalid_argument("CIDR prefix is empty.");
     }
 
     const std::uint32_t ip = parse_ipv4(ip_text);

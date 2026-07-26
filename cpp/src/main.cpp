@@ -7,6 +7,17 @@
 
 namespace {
 
+std::string_view trim_ascii_whitespace(std::string_view text) {
+    const auto first = text.find_first_not_of(" \t\n\r\f\v");
+
+    if (first == std::string_view::npos) {
+        return {};
+    }
+
+    const auto last = text.find_last_not_of(" \t\n\r\f\v");
+    return text.substr(first, last - first + 1);
+}
+
 void print_usage(std::string_view program_name) {
     std::cout
         << "IPv4 Subnet Calculator\n\n"
@@ -53,14 +64,7 @@ int process_input(std::string_view input, bool show_format_hint) {
 }
 
 bool is_quit_command(std::string_view input) {
-    const auto first = input.find_first_not_of(" \t\n\r\f\v");
-
-    if (first == std::string_view::npos) {
-        return false;
-    }
-
-    const auto last = input.find_last_not_of(" \t\n\r\f\v");
-    const auto command = input.substr(first, last - first + 1);
+    const auto command = trim_ascii_whitespace(input);
     return command == "q" || command == "Q";
 }
 
