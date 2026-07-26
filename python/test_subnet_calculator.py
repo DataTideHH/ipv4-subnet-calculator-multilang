@@ -84,6 +84,23 @@ class SubnetCalculatorContractTest(unittest.TestCase):
         )
         self.assertEqual(0, result.returncode)
         self.assertIn("Usage:", result.stdout)
+        self.assertEqual("", result.stderr)
+
+    def test_incorrect_usage(self) -> None:
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT_PATH),
+                "192.168.10.42/24",
+                "extra",
+            ],
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+        self.assertEqual(1, result.returncode)
+        self.assertIn("Error: Expected zero or one argument.", result.stderr)
+        self.assertIn("Usage:", result.stdout)
 
 
 if __name__ == "__main__":
