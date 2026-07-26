@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -122,6 +123,9 @@ def commands() -> dict[str, list[str]]:
     return {
         "Java 21": [
             "java",
+            "-Dfile.encoding=UTF-8",
+            "-Dstdout.encoding=UTF-8",
+            "-Dstderr.encoding=UTF-8",
             "-cp",
             str(REPOSITORY_ROOT / "java" / "out"),
             "SubnetCalculator",
@@ -144,11 +148,15 @@ def observe(
     if argument is not None:
         arguments.append(argument)
 
+    environment = os.environ.copy()
+    environment["PYTHONIOENCODING"] = "utf-8"
+
     completed = subprocess.run(
         arguments,
         input=None if stdin is None else stdin.encode("utf-8"),
         capture_output=True,
         check=False,
+        env=environment,
     )
     return Observation(completed.returncode, completed.stdout, completed.stderr)
 
