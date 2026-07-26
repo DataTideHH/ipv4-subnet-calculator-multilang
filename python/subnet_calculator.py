@@ -2,6 +2,9 @@ from dataclasses import dataclass
 import sys
 
 
+ASCII_WHITESPACE = " \t\n\r\f\v"
+
+
 @dataclass(frozen=True, slots=True)
 class Calculation:
     input_ip: str
@@ -43,7 +46,7 @@ def run_interactive_mode() -> None:
     while True:
         print("Enter IPv4/CIDR or q to quit:")
         try:
-            user_input = input("> ").strip()
+            user_input = trim_ascii_whitespace(input("> "))
         except EOFError:
             print()
             return
@@ -103,11 +106,15 @@ def print_result(result: Calculation) -> None:
     print(f"Note:              {result.note}")
 
 
+def trim_ascii_whitespace(text: str) -> str:
+    return text.strip(ASCII_WHITESPACE)
+
+
 def calculate(cidr: str) -> Calculation:
     if cidr is None:
         raise ValueError("Input is missing.")
 
-    trimmed = cidr.strip()
+    trimmed = trim_ascii_whitespace(cidr)
 
     if not trimmed:
         raise ValueError("Input is empty.")
@@ -170,6 +177,9 @@ def calculate(cidr: str) -> Calculation:
 def parse_prefix(prefix_text: str) -> int:
     if not is_ascii_digits(prefix_text):
         raise ValueError(f"CIDR prefix must contain only digits: {prefix_text}")
+
+    if len(prefix_text) > 1 and prefix_text[0] == "0":
+        raise ValueError(f"CIDR prefix must not have leading zeros: {prefix_text}")
 
     return parse_bounded_decimal(prefix_text, "CIDR prefix", 32)
 
