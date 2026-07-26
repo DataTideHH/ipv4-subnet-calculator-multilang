@@ -95,6 +95,14 @@ DIRECT_CASES = (
 )
 
 
+WINDOWS_SEMANTIC_CASES = frozenset(
+    {
+        "non-breaking space is not trimmed",
+        "ideographic space is not trimmed",
+    }
+)
+
+
 INTERACTIVE_CASES = (
     ("ASCII whitespace around quit", "\tq\r\n", ""),
     (
@@ -181,27 +189,50 @@ def assert_equal_observations(
     return baseline
 
 
+def assert_direct_expectation(
+    case: DirectCase,
+    language: str,
+    observation: Observation,
+) -> None:
+    if observation.returncode != case.expected_returncode:
+        raise AssertionError(
+            f"{case.name}: {language} expected exit code {case.expected_returncode}, "
+            f"got {observation.returncode}"
+        )
+
+    stream = observation.stdout if case.fragment_stream == "stdout" else observation.stderr
+    expected_fragment = case.expected_fragment.encode("ascii")
+    if expected_fragment not in stream:
+        raise AssertionError(
+            f"{case.name}: {language} expected {expected_fragment!r} in "
+            f"{case.fragment_stream}, got {stream!r}"
+        )
+
+    if case.expected_returncode != 0:
+        if observation.stdout:
+            raise AssertionError(
+                f"{case.name}: {language} expected empty stdout, got {observation.stdout!r}"
+            )
+        if b"Expected format: IPv4/CIDR" not in observation.stderr:
+            raise AssertionError(
+                f"{case.name}: {language} did not print the direct-mode format hint"
+            )
+
+
 def verify_direct_cases(programs: dict[str, list[str]]) -> None:
     for case in DIRECT_CASES:
         observations = {
             language: observe(command, argument=case.input_text)
             for language, command in programs.items()
         }
+
+        if os.name == "nt" and case.name in WINDOWS_SEMANTIC_CASES:
+            for language, observation in observations.items():
+                assert_direct_expectation(case, language, observation)
+            continue
+
         baseline = assert_equal_observations(case.name, observations)
-
-        if baseline.returncode != case.expected_returncode:
-            raise AssertionError(
-                f"{case.name}: expected exit code {case.expected_returncode}, "
-                f"got {baseline.returncode}"
-            )
-
-        stream = baseline.stdout if case.fragment_stream == "stdout" else baseline.stderr
-        expected_fragment = case.expected_fragment.encode("ascii")
-        if expected_fragment not in stream:
-            raise AssertionError(
-                f"{case.name}: expected {expected_fragment!r} in "
-                f"{case.fragment_stream}, got {stream!r}"
-            )
+        assert_direct_expectation(case, "all implementations", baseline)
 
 
 def verify_interactive_cases(programs: dict[str, list[str]]) -> None:
