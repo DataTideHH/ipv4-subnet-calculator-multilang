@@ -43,7 +43,7 @@ The project deliberately excludes IPv6, VLSM planning, subnet splitting, a GUI, 
 
 All three versions use equivalent calculation rules, validation categories, output fields, special-case handling, terminal modes and exit behavior.
 
-A separate cross-language runner executes all three real command-line programs and compares complete `stdout`, `stderr` and exit codes.
+A separate cross-language runner executes all three command-line implementations on Linux and Windows. It compares complete process observations where the platform launch boundary preserves the input and verifies equivalent error semantics for two explicitly documented non-ASCII Windows argument cases.
 
 ---
 
@@ -233,12 +233,10 @@ Every language also verifies valid direct execution, invalid direct execution, h
 
 ## Cross-Language Parity Tests
 
-[`tests/cross_language_parity.py`](tests/cross_language_parity.py) executes the compiled Java and C++ programs together with the Python program.
-
-It compares the full process observation:
+[`tests/cross_language_parity.py`](tests/cross_language_parity.py) executes the compiled Java and C++ programs together with the Python program and records:
 
 ```text
-(return code, stdout, stderr)
+(return code, stdout bytes, stderr bytes)
 ```
 
 The current suite contains nine direct and two interactive cases covering:
@@ -250,26 +248,32 @@ The current suite contains nine direct and two interactive cases covering:
 - allowed ASCII tab and carriage-return trimming
 - interactive quit handling
 
-After Java and C++ have been built:
+On Linux, all cases require complete byte-for-byte equality. On Windows, the same applies to ASCII-safe direct cases and interactive cases. The non-breaking-space and ideographic-space command-line cases verify equivalent exit codes and error categories per implementation because the Windows Java launcher may replace an unrepresentable character before the application receives it.
+
+After Java and C++ have been built, compile the parity-only Java launcher and run:
 
 ```text
+javac -d java/out java/src/SubnetCalculator.java java/test/Utf8JavaLauncher.java
 python tests/cross_language_parity.py
 ```
 
-See [Testing and CI](docs/testing-and-ci.md) for the verification design.
+On Windows, `py -3.12` can replace `python`.
+
+See [Testing and CI](docs/testing-and-ci.md) for the verification design and platform boundary.
 
 ---
 
 ## GitHub Actions
 
-The `CI` workflow runs on pull requests, pushes to `main` and manual dispatches. It exposes four independent checks:
+The `CI` workflow runs on pull requests, pushes to `main` and manual dispatches. It exposes five independent checks:
 
 - `Java 21`
 - `C++20`
 - `Python 3.12`
 - `Cross-language parity`
+- `Cross-language parity (Windows)`
 
-The jobs use read-only repository permissions, cancel superseded runs and apply per-job timeouts.
+The jobs use read-only repository permissions, cancel superseded runs and apply per-job timeouts. A Windows parity failure uploads a temporary diagnostic artifact before the job fails.
 
 ---
 
@@ -288,7 +292,9 @@ ipv4-subnet-calculator-multilang/
 ├── java/
 │   ├── README.md
 │   ├── src/SubnetCalculator.java
-│   └── test/SubnetCalculatorTest.java
+│   └── test/
+│       ├── SubnetCalculatorTest.java
+│       └── Utf8JavaLauncher.java
 ├── cpp/
 │   ├── README.md
 │   ├── CMakeLists.txt
@@ -321,7 +327,7 @@ ipv4-subnet-calculator-multilang/
 | 3 | Python implementation | Complete |
 | 4 | Shared tests, language-specific runners and GitHub Actions | Complete |
 | 5 | Portfolio integration, hardening and related-project links | Complete for current scope |
-| 6 | Adversarial parsing review and process-level cross-language parity | Complete |
+| 6 | Adversarial parsing review and cross-platform process parity | Complete |
 
 ---
 

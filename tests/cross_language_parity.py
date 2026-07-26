@@ -1,19 +1,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
 import subprocess
 import sys
+import traceback
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+DIAGNOSTICS_PATH = REPOSITORY_ROOT / "parity-diagnostics.txt"
 
 
 @dataclass(frozen=True)
 class Observation:
     returncode: int
-    stdout: str
-    stderr: str
+    stdout: bytes
+    stderr: bytes
 
 
 @dataclass(frozen=True)
@@ -92,6 +95,14 @@ DIRECT_CASES = (
 )
 
 
+WINDOWS_SEMANTIC_CASES = frozenset(
+    {
+        "non-breaking space is not trimmed",
+        "ideographic space is not trimmed",
+    }
+)
+
+
 INTERACTIVE_CASES = (
     ("ASCII whitespace around quit", "\tq\r\n", ""),
     (
@@ -122,9 +133,12 @@ def commands() -> dict[str, list[str]]:
     return {
         "Java 21": [
             "java",
+            "-Dfile.encoding=UTF-8",
+            "-Dstdout.encoding=UTF-8",
+            "-Dstderr.encoding=UTF-8",
             "-cp",
             str(REPOSITORY_ROOT / "java" / "out"),
-            "SubnetCalculator",
+            "Utf8JavaLauncher",
         ],
         "C++20": [str(cpp_program())],
         "Python 3.12": [
@@ -144,13 +158,15 @@ def observe(
     if argument is not None:
         arguments.append(argument)
 
+    environment = os.environ.copy()
+    environment["PYTHONIOENCODING"] = "utf-8"
+
     completed = subprocess.run(
         arguments,
-        input=stdin,
+        input=None if stdin is None else stdin.encode("utf-8"),
         capture_output=True,
         check=False,
-        text=True,
-        encoding="utf-8",
+        env=environment,
     )
     return Observation(completed.returncode, completed.stdout, completed.stderr)
 
@@ -173,26 +189,50 @@ def assert_equal_observations(
     return baseline
 
 
+def assert_direct_expectation(
+    case: DirectCase,
+    language: str,
+    observation: Observation,
+) -> None:
+    if observation.returncode != case.expected_returncode:
+        raise AssertionError(
+            f"{case.name}: {language} expected exit code {case.expected_returncode}, "
+            f"got {observation.returncode}"
+        )
+
+    stream = observation.stdout if case.fragment_stream == "stdout" else observation.stderr
+    expected_fragment = case.expected_fragment.encode("ascii")
+    if expected_fragment not in stream:
+        raise AssertionError(
+            f"{case.name}: {language} expected {expected_fragment!r} in "
+            f"{case.fragment_stream}, got {stream!r}"
+        )
+
+    if case.expected_returncode != 0:
+        if observation.stdout:
+            raise AssertionError(
+                f"{case.name}: {language} expected empty stdout, got {observation.stdout!r}"
+            )
+        if b"Expected format: IPv4/CIDR" not in observation.stderr:
+            raise AssertionError(
+                f"{case.name}: {language} did not print the direct-mode format hint"
+            )
+
+
 def verify_direct_cases(programs: dict[str, list[str]]) -> None:
     for case in DIRECT_CASES:
         observations = {
             language: observe(command, argument=case.input_text)
             for language, command in programs.items()
         }
+
+        if os.name == "nt" and case.name in WINDOWS_SEMANTIC_CASES:
+            for language, observation in observations.items():
+                assert_direct_expectation(case, language, observation)
+            continue
+
         baseline = assert_equal_observations(case.name, observations)
-
-        if baseline.returncode != case.expected_returncode:
-            raise AssertionError(
-                f"{case.name}: expected exit code {case.expected_returncode}, "
-                f"got {baseline.returncode}"
-            )
-
-        stream = baseline.stdout if case.fragment_stream == "stdout" else baseline.stderr
-        if case.expected_fragment not in stream:
-            raise AssertionError(
-                f"{case.name}: expected {case.expected_fragment!r} in "
-                f"{case.fragment_stream}, got {stream!r}"
-            )
+        assert_direct_expectation(case, "all implementations", baseline)
 
 
 def verify_interactive_cases(programs: dict[str, list[str]]) -> None:
@@ -206,17 +246,24 @@ def verify_interactive_cases(programs: dict[str, list[str]]) -> None:
         if baseline.returncode != 0:
             raise AssertionError(f"{name}: expected exit code 0, got {baseline.returncode}")
 
-        if expected_stderr_fragment not in baseline.stderr:
+        expected_fragment = expected_stderr_fragment.encode("ascii")
+        if expected_fragment not in baseline.stderr:
             raise AssertionError(
-                f"{name}: expected {expected_stderr_fragment!r} in stderr, "
+                f"{name}: expected {expected_fragment!r} in stderr, "
                 f"got {baseline.stderr!r}"
             )
 
 
 def main() -> int:
-    programs = commands()
-    verify_direct_cases(programs)
-    verify_interactive_cases(programs)
+    try:
+        programs = commands()
+        verify_direct_cases(programs)
+        verify_interactive_cases(programs)
+    except Exception:
+        DIAGNOSTICS_PATH.write_text(traceback.format_exc(), encoding="utf-8")
+        raise
+
+    DIAGNOSTICS_PATH.unlink(missing_ok=True)
     print(f"Cross-language direct parity cases passed: {len(DIRECT_CASES)}")
     print(f"Cross-language interactive parity cases passed: {len(INTERACTIVE_CASES)}")
     return 0

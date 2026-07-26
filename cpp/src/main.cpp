@@ -4,6 +4,11 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <vector>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 namespace {
 
@@ -89,26 +94,88 @@ void run_interactive_mode() {
     }
 }
 
-} // namespace
-
-int main(int argc, char* argv[]) {
-    if (argc == 1) {
+int run_program(const std::vector<std::string>& arguments) {
+    if (arguments.size() == 1) {
         run_interactive_mode();
         return 0;
     }
 
-    if (argc != 2) {
+    if (arguments.size() != 2) {
         std::cerr << "Error: Expected zero or one argument.\n";
-        print_usage(argv[0]);
+        print_usage(arguments.front());
         return 1;
     }
 
-    const std::string_view argument = argv[1];
+    const std::string_view argument = arguments[1];
 
     if (argument == "-h" || argument == "--help") {
-        print_usage(argv[0]);
+        print_usage(arguments.front());
         return 0;
     }
 
     return process_input(argument, true);
 }
+
+#ifdef _WIN32
+std::string wide_to_utf8(std::wstring_view text) {
+    if (text.empty()) {
+        return {};
+    }
+
+    const int required_size = WideCharToMultiByte(
+        CP_UTF8,
+        WC_ERR_INVALID_CHARS,
+        text.data(),
+        static_cast<int>(text.size()),
+        nullptr,
+        0,
+        nullptr,
+        nullptr);
+
+    if (required_size <= 0) {
+        throw std::runtime_error("Could not convert the Windows command line to UTF-8.");
+    }
+
+    std::string result(static_cast<std::size_t>(required_size), '\0');
+    const int written_size = WideCharToMultiByte(
+        CP_UTF8,
+        WC_ERR_INVALID_CHARS,
+        text.data(),
+        static_cast<int>(text.size()),
+        result.data(),
+        required_size,
+        nullptr,
+        nullptr);
+
+    if (written_size != required_size) {
+        throw std::runtime_error("Could not convert the Windows command line to UTF-8.");
+    }
+
+    return result;
+}
+#endif
+
+} // namespace
+
+#ifdef _WIN32
+int wmain(int argc, wchar_t* argv[]) {
+    try {
+        std::vector<std::string> arguments;
+        arguments.reserve(static_cast<std::size_t>(argc));
+
+        for (int index = 0; index < argc; ++index) {
+            arguments.push_back(wide_to_utf8(argv[index]));
+        }
+
+        return run_program(arguments);
+    } catch (const std::runtime_error& error) {
+        std::cerr << "Error: " << error.what() << '\n';
+        return 1;
+    }
+}
+#else
+int main(int argc, char* argv[]) {
+    const std::vector<std::string> arguments(argv, argv + argc);
+    return run_program(arguments);
+}
+#endif
