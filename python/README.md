@@ -33,6 +33,20 @@ On Windows, `py -3.12` can be used instead of `python` when multiple Python vers
 py -3.12 python/subnet_calculator.py 192.168.10.42/24
 ```
 
+## Tests
+
+Run the shared contract and CLI smoke tests:
+
+```text
+python -m unittest discover -s python -p "test_*.py" -v
+```
+
+On Windows, the equivalent explicit Python 3.12 command is:
+
+```text
+py -3.12 -m unittest discover -s python -p "test_*.py" -v
+```
+
 ## Design
 
 The implementation uses only the Python standard library:
@@ -41,7 +55,8 @@ The implementation uses only the Python standard library:
 - terminal interaction is separated from calculation and validation functions
 - IPv4 addresses are converted to 32-bit integer values for bitwise arithmetic
 - explicit ASCII digit checks avoid accepting Unicode numerals
-- `ValueError` communicates the same validation categories used by Java and C++
+- bounded decimal text is compared before `int` conversion so oversized values produce the same range errors as Java and C++
+- `ValueError` communicates the shared validation categories
 
 ## Program behavior
 
@@ -53,6 +68,4 @@ The implementation uses only the Python standard library:
 - interactive validation errors do not end the session
 - `q`, `Q`, or end-of-file ends the interactive session normally
 
-The normative rules are defined in [`docs/behavior-specification.md`](../docs/behavior-specification.md).
-
-Automated tests and GitHub Actions remain planned for Phase 4.
+The normative rules are defined in [`docs/behavior-specification.md`](../docs/behavior-specification.md). Automated tests and GitHub Actions verify the current implementation.
