@@ -24,6 +24,7 @@ The deliberately narrow scope makes the comparison credible:
 - correct `/0`, `/31` and `/32` handling
 - no external runtime dependencies
 - one shared set of expected domain results
+- consistent oversized-number handling across fixed-width and arbitrary-precision integers
 
 The project connects programming fundamentals, test design and practical IPv4 subnetting without presenting a small calculator as a production network platform.
 
@@ -34,8 +35,8 @@ The project connects programming fundamentals, test design and practical IPv4 su
 | Implementation | Structure | Verification | Status |
 |---|---|---|---|
 | Java 21 | Single application class with a record result | Plain Java CLI contract runner | Implemented and tested |
-| C++20 | Header, calculation module and terminal entry point | CTest executable | Implemented and tested |
-| Python 3.12 | Single module with a frozen, slotted dataclass | Standard-library `unittest` | Implemented and tested |
+| C++20 | Header, calculation module and terminal entry point | CTest contract executable plus CLI smoke script | Implemented and tested |
+| Python 3.12 | Single module with a frozen, slotted dataclass | Standard-library `unittest` plus subprocess checks | Implemented and tested |
 
 All three versions share the same input contract, output fields, validation categories, special-case behavior and exit rules.
 
@@ -67,13 +68,15 @@ Note:              Standard subnet with network and broadcast addresses excluded
 
 The complete normative rules are documented in the [behavior specification](behavior-specification.md).
 
+The `/0` output is a mathematical calculation over the complete 32-bit IPv4 address space. It is not a claim that all reported addresses are globally assignable to hosts.
+
 ---
 
 ## Shared verification
 
 Every language-specific runner reads the same tab-separated contract file.
 
-The current set covers:
+The current contract contains seven valid and sixteen invalid cases covering:
 
 - standard `/24`, `/30` and `/16` subnets
 - all IPv4 addresses through `/0`
@@ -83,9 +86,17 @@ The current set covers:
 - malformed separators and octet counts
 - empty and non-decimal values
 - signs, range violations and leading zeros
+- oversized numeric octets and prefixes
 - whitespace inside the token
 
 Valid cases verify every result field. Invalid cases verify the exact validation reason.
+
+Every implementation also has CLI smoke coverage for:
+
+- valid direct execution
+- invalid direct execution
+- help mode
+- incorrect usage with too many arguments
 
 Read [Testing and CI](testing-and-ci.md) for commands and design details.
 
@@ -99,7 +110,7 @@ The repository runs three independent checks on pull requests and pushes to `mai
 - `C++20`
 - `Python 3.12`
 
-Separate jobs make failures easy to locate and provide stable status checks for protected-branch rules.
+Separate jobs make failures easy to locate and provide stable status checks for protected-branch rules. The workflow uses read-only permissions, current official action major versions and per-job timeouts.
 
 ---
 
@@ -127,6 +138,15 @@ python python/subnet_calculator.py 192.168.10.42/24
 
 ---
 
+## Standards and learning references
+
+- [RFC 3021: Using 31-Bit Prefixes on IPv4 Point-to-Point Links](https://www.rfc-editor.org/rfc/rfc3021.html)
+- [RFC 4632: Classless Inter-domain Routing (CIDR)](https://www.rfc-editor.org/rfc/rfc4632.html)
+- [Core Internet Standards and RFC Editor](https://github.com/DataTideHH/open-learning-resources/tree/main/resources/networking/core-internet-standards-rfc-editor)
+- [GitHub Actions Documentation](https://github.com/DataTideHH/open-learning-resources/tree/main/resources/git/github-actions-documentation)
+
+---
+
 ## Related portfolio projects
 
 - [Cisco Switching Lab](https://datatidehh.github.io/cisco-switching-lab/) provides the physical switching and CCNA-oriented context behind IPv4 addressing and subnetting.
@@ -150,7 +170,7 @@ The strongest signal is not the calculator alone. It is the disciplined workflow
 
 - explicit behavioral specification
 - three independently structured implementations
-- shared fachliche test cases
+- shared domain test cases
 - reproducible local commands
 - GitHub Actions
 - public project documentation
