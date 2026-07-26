@@ -8,7 +8,7 @@ description: Shared contract cases, language-specific runners and cross-language
 The project verifies equivalent behavior at two levels:
 
 1. one shared set of domain cases executed by every language-specific runner
-2. one process-level parity suite that compares complete `stdout`, `stderr` and exit codes across Java, C++ and Python
+2. one process-level parity suite that compares observable command-line behavior across Java, C++ and Python
 
 ## Shared contract cases
 
@@ -44,10 +44,10 @@ No external test framework is required.
 
 ## Cross-language parity
 
-[`tests/cross_language_parity.py`](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang/blob/main/tests/cross_language_parity.py) executes the three real command-line programs and compares the complete observable result:
+[`tests/cross_language_parity.py`](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang/blob/main/tests/cross_language_parity.py) executes the three real command-line implementations and records:
 
 ```text
-(return code, stdout, stderr)
+(return code, stdout bytes, stderr bytes)
 ```
 
 The current parity suite contains nine direct cases and two interactive cases. It covers:
@@ -61,14 +61,20 @@ The current parity suite contains nine direct cases and two interactive cases. I
 - ASCII-trimmed interactive quit handling
 - rejection of Unicode-space-wrapped quit text
 
-This closes gaps that ordinary happy-path and one-error-at-a-time contract cases can miss.
+On Linux, all nine direct cases and both interactive cases require complete byte-for-byte equality across Java, C++ and Python.
+
+On Windows, all ASCII-safe direct cases and both interactive cases also require complete byte-for-byte equality. The two non-ASCII command-line argument cases are checked semantically per implementation: identical exit code, identical error category, empty standard output and the expected direct-mode format hint. This boundary is explicit because the Windows Java launcher may replace a command-line character that is not representable in its native launcher encoding before `main(String[])` receives the argument.
+
+The C++ executable uses a wide-character Windows entry point and converts command-line arguments to UTF-8. The parity-only Java launcher configures UTF-8 standard streams. Child-process streams are captured as bytes so the test harness does not impose an incorrect decoder on platform-native output.
+
+A failed parity run writes `parity-diagnostics.txt`. GitHub Actions uploads that file as a temporary diagnostic artifact on Windows failures; successful runs remove it.
 
 ## Local commands
 
 ### Java
 
 ```text
-javac -d java/out java/src/SubnetCalculator.java java/test/SubnetCalculatorTest.java
+javac -d java/out java/src/SubnetCalculator.java java/test/SubnetCalculatorTest.java java/test/Utf8JavaLauncher.java
 java -cp java/out SubnetCalculatorTest tests/cases.tsv
 ```
 
@@ -100,11 +106,12 @@ On Windows, `py -3.12` can replace `python`.
 
 The workflow under `.github/workflows/ci.yml` runs on pull requests, pushes to `main` and manual dispatches.
 
-It exposes four independent checks:
+It exposes five independent checks:
 
 - `Java 21`
 - `C++20`
 - `Python 3.12`
 - `Cross-language parity`
+- `Cross-language parity (Windows)`
 
-The workflow uses read-only repository permissions, cancels superseded runs and applies a ten-minute timeout to every job. Keeping the checks separate makes failures easy to locate and allows branch protection to require the language checks and process-level conformance independently.
+The workflow uses read-only repository permissions, cancels superseded runs and applies a ten-minute timeout to every job. Keeping the checks separate makes failures easy to locate and verifies both the Linux toolchain and the Windows execution boundary.
