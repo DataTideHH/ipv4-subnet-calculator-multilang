@@ -11,7 +11,14 @@ invalid	missing-separator	192.168.1.10									Missing '/' separator.
 invalid	multiple-separators	192.168.1.10/24/1									Input must contain exactly one '/'.
 invalid	empty-ipv4	/24									IPv4 address is empty.
 invalid	empty-prefix	192.168.1.10/									CIDR prefix is empty.
+invalid	empty-prefix-invalid-octet-range	192.168.1.999/									CIDR prefix is empty.
+invalid	empty-prefix-wrong-octet-count	1.2.3/									CIDR prefix is empty.
+invalid	empty-prefix-nondigit-octet	1.2.3.a/									CIDR prefix is empty.
+invalid	empty-prefix-leading-zero-octet	192.168.001.1/									CIDR prefix is empty.
 invalid	nondigit-prefix	192.168.1.10/abc									CIDR prefix must contain only digits: abc
+invalid	prefix-leading-zero-zero	192.168.1.10/00									CIDR prefix must not have leading zeros: 00
+invalid	prefix-leading-zero-nonzero	192.168.1.10/08									CIDR prefix must not have leading zeros: 08
+invalid	prefix-leading-zero-max	192.168.1.10/0032									CIDR prefix must not have leading zeros: 0032
 invalid	prefix-out-of-range	192.168.1.10/33									CIDR prefix out of range (0-32): 33
 invalid	oversized-prefix	192.168.1.10/999999999999999999999									CIDR prefix out of range (0-32): 999999999999999999999
 invalid	wrong-octet-count	192.168.1/24									IPv4 must have exactly four octets: 192.168.1
