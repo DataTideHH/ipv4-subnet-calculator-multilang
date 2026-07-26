@@ -39,7 +39,9 @@ public class SubnetCalculatorTest {
             executed++;
         }
 
+        verifyCliModes();
         System.out.println("Java contract tests passed: " + executed);
+        System.out.println("Java CLI smoke tests passed: 4");
     }
 
     private static void verifyValid(String[] testCase) throws Exception {
@@ -79,20 +81,45 @@ public class SubnetCalculatorTest {
         assertContains(name + " error", result.output(), "Error: " + testCase[11]);
     }
 
-    private static ProcessResult runCalculator(String input) throws IOException, InterruptedException {
+    private static void verifyCliModes() throws Exception {
+        ProcessResult valid = runCalculator("192.168.10.42/24");
+        assertEquals("valid direct mode exit code", 0, valid.exitCode());
+        assertContains("valid direct mode output", valid.output(),
+                "Network address:   192.168.10.0");
+
+        ProcessResult invalid = runCalculator("192.168.1.300/24");
+        assertEquals("invalid direct mode exit code", 1, invalid.exitCode());
+        assertContains("invalid direct mode error", invalid.output(),
+                "Error: IPv4 octet out of range (0-255): 300");
+
+        ProcessResult help = runCalculator("--help");
+        assertEquals("help mode exit code", 0, help.exitCode());
+        assertContains("help mode output", help.output(), "Usage:");
+
+        ProcessResult incorrectUsage = runCalculator("192.168.10.42/24", "extra");
+        assertEquals("incorrect usage exit code", 1, incorrectUsage.exitCode());
+        assertContains("incorrect usage error", incorrectUsage.output(),
+                "Error: Expected zero or one argument.");
+    }
+
+    private static ProcessResult runCalculator(String... arguments)
+            throws IOException, InterruptedException {
         String executable = Path.of(
                 System.getProperty("java.home"),
                 "bin",
                 System.getProperty("os.name").toLowerCase().contains("win") ? "java.exe" : "java"
         ).toString();
 
-        Process process = new ProcessBuilder(
-                executable,
-                "-cp",
-                System.getProperty("java.class.path"),
-                "SubnetCalculator",
-                input
-        ).redirectErrorStream(true).start();
+        String[] command = new String[4 + arguments.length];
+        command[0] = executable;
+        command[1] = "-cp";
+        command[2] = System.getProperty("java.class.path");
+        command[3] = "SubnetCalculator";
+        System.arraycopy(arguments, 0, command, 4, arguments.length);
+
+        Process process = new ProcessBuilder(command)
+                .redirectErrorStream(true)
+                .start();
 
         String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         int exitCode = process.waitFor();
