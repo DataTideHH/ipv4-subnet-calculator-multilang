@@ -1,15 +1,15 @@
 ---
 title: Implementation Comparison
-description: Comparison of the Java, C++ and planned Python calculator implementations
+description: Comparison of the Java, C++ and Python calculator implementations
 ---
 
 # Implementation Comparison
 
-The Java and C++ implementations now follow the same observable behavior. The Python implementation will be added in Phase 3 using the same specification.
+The Java, C++ and Python implementations follow the same observable behavior while using idiomatic structures for each language.
 
 ## Shared behavior
 
-Both current implementations provide:
+All implementations provide:
 
 - interactive terminal mode without arguments
 - direct command-line mode with one IPv4/CIDR argument
@@ -24,17 +24,17 @@ Both current implementations provide:
 
 | Area | Java 21 | C++20 | Python 3.12 |
 |---|---|---|---|
-| Status | Implemented | Implemented | Planned |
-| Result type | Record | Struct | Dataclass planned |
-| Build | `javac` | CMake | None planned |
+| Status | Implemented | Implemented | Implemented |
+| Result type | Record | Struct | Frozen, slotted dataclass |
+| Build | `javac` | CMake | None |
 | Runtime | JVM | Native executable | Python interpreter |
-| Dependencies | Java standard library | C++ standard library | Standard library planned |
-| Interactive mode | Implemented | Implemented | Planned |
-| Direct mode | Implemented | Implemented | Planned |
-| Help options | `-h`, `--help` | `-h`, `--help` | Planned |
-| Validation errors | `IllegalArgumentException` | `std::invalid_argument` | Planned |
-| IPv4 storage | 64-bit `long` calculation values | `std::uint32_t` | Integer planned |
-| Address count | 64-bit `long` | `std::uint64_t` | Integer planned |
+| Dependencies | Java standard library | C++ standard library | Python standard library |
+| Interactive mode | Implemented | Implemented | Implemented |
+| Direct mode | Implemented | Implemented | Implemented |
+| Help options | `-h`, `--help` | `-h`, `--help` | `-h`, `--help` |
+| Validation errors | `IllegalArgumentException` | `std::invalid_argument` | `ValueError` |
+| IPv4 storage | 64-bit `long` calculation values | `std::uint32_t` | Arbitrary-precision `int`, masked to 32 bits |
+| Address count | 64-bit `long` | `std::uint64_t` | `int` |
 | Automated tests | Phase 4 | Phase 4 | Phase 4 |
 
 ## Java design
@@ -65,22 +65,44 @@ cpp/include/subnet.h
 
 The `Calculation` struct represents the shared result. IPv4 values use `std::uint32_t`, while total and usable address counts use `std::uint64_t`.
 
-Earlier code returned only an empty `std::optional` for invalid input. The consolidated implementation throws `std::invalid_argument` with the specific validation reason, allowing the terminal layer to report errors equivalent to the Java version.
+Validation failures use `std::invalid_argument` with a specific reason, allowing the terminal layer to report errors equivalent to the Java and Python versions.
+
+## Python design
+
+The Python version keeps the implementation in one module:
+
+```text
+python/subnet_calculator.py
+```
+
+A frozen, slotted `dataclass` represents the shared calculation result. Separate functions handle:
+
+- argument and mode selection
+- interactive input
+- output formatting
+- IPv4 and CIDR validation
+- subnet arithmetic
+- integer-to-IPv4 conversion
+
+Python integers do not overflow at 32 or 64 bits. The implementation still applies an explicit `0xFFFFFFFF` mask where required so that the bitwise behavior remains equivalent to fixed-width IPv4 arithmetic.
+
+The digit check deliberately accepts only ASCII `0-9`, matching the shared specification instead of Python's broader Unicode-aware `str.isdigit()` behavior.
 
 ## Deliberate differences
 
 The goal is equivalent behavior, not identical source code.
 
-- Java uses exceptions that are conventional for invalid arguments in a small command-line program.
-- C++ uses fixed-width unsigned integer types for explicit IPv4 arithmetic.
-- Java remains in one file to avoid unnecessary structure for a small program.
-- C++ keeps a header and source split because the calculation module and executable are separate compilation units.
+- Java uses a record and `IllegalArgumentException`.
+- C++ uses a struct, fixed-width unsigned integers and `std::invalid_argument`.
+- Python uses a dataclass, functions and `ValueError`.
+- Java and Python remain single-file implementations because the program is small.
+- C++ keeps a header and source split because calculation logic and the executable are separate compilation units.
 
 These differences demonstrate language conventions while preserving the same user-facing contract.
 
 ## Validation status
 
-The current implementations were built and manually compared for:
+The implementations were manually checked for:
 
 - standard subnet output
 - `/0`
@@ -88,7 +110,8 @@ The current implementations were built and manually compared for:
 - `/32`
 - all invalid examples in the shared specification
 - interactive error recovery
-- quit behavior
+- quit and EOF behavior
+- help behavior
 - direct-mode exit codes
 
 Formal test suites and continuous integration remain intentionally reserved for Phase 4.
