@@ -203,21 +203,7 @@ public class SubnetCalculator {
                     "CIDR prefix must contain only digits: " + prefixText);
         }
 
-        int prefix;
-
-        try {
-            prefix = Integer.parseInt(prefixText);
-        } catch (NumberFormatException error) {
-            throw new IllegalArgumentException(
-                    "CIDR prefix is not a valid number: " + prefixText);
-        }
-
-        if (prefix < 0 || prefix > 32) {
-            throw new IllegalArgumentException(
-                    "CIDR prefix out of range (0-32): " + prefix);
-        }
-
-        return prefix;
+        return parseBoundedDecimal(prefixText, "CIDR prefix", 32);
     }
 
     private static long parseIpv4(String ipText) {
@@ -246,24 +232,34 @@ public class SubnetCalculator {
                         "IPv4 octet must not have leading zeros: " + part);
             }
 
-            int octet;
-
-            try {
-                octet = Integer.parseInt(part);
-            } catch (NumberFormatException error) {
-                throw new IllegalArgumentException(
-                        "IPv4 octet is not a valid number: " + part);
-            }
-
-            if (octet < 0 || octet > 255) {
-                throw new IllegalArgumentException(
-                        "IPv4 octet out of range (0-255): " + octet);
-            }
-
+            int octet = parseBoundedDecimal(part, "IPv4 octet", 255);
             result = (result << 8) | octet;
         }
 
         return result;
+    }
+
+    private static int parseBoundedDecimal(String text, String label, int maximum) {
+        int firstSignificant = 0;
+
+        while (firstSignificant < text.length() - 1
+                && text.charAt(firstSignificant) == '0') {
+            firstSignificant++;
+        }
+
+        String normalized = text.substring(firstSignificant);
+        String maximumText = Integer.toString(maximum);
+
+        boolean exceedsMaximum = normalized.length() > maximumText.length()
+                || (normalized.length() == maximumText.length()
+                && normalized.compareTo(maximumText) > 0);
+
+        if (exceedsMaximum) {
+            throw new IllegalArgumentException(
+                    label + " out of range (0-" + maximum + "): " + text);
+        }
+
+        return Integer.parseInt(normalized);
     }
 
     private static boolean isAllDigits(String text) {
