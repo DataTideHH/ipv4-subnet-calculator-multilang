@@ -1,0 +1,46 @@
+# Operating systems
+.DS_Store
+Thumbs.db
+
+# Editors and IDEs
+.idea/
+.vscode/
+*.iml
+
+# Environment and local configuration
+.env
+.env.*
+!.env.example
+
+# Java
+*.class
+java/out/
+java/build/
+
+# C and C++
+cpp/build/
+cpp/cmake-build-*/
+*.o
+*.obj
+*.exe
+*.out
+*.dSYM/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Coverage and generated test output
+coverage/
+htmlcov/
+.coverage
+
+# Temporary files
+*.log
+*.tmp
+*.swp
