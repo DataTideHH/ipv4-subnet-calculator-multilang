@@ -5,7 +5,7 @@ description: Java, C++ and Python implementations of the same terminal-based IPv
 
 # IPv4 Subnet Calculator Multilang
 
-**A small terminal-based IPv4 subnet calculator implemented from one shared behavior specification.**
+**A small terminal-based IPv4 subnet calculator implemented in Java 21, C++20 and Python 3.12 from one shared behavior specification.**
 
 [View repository](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang) · [Read the full README](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang/blob/main/README.md) · [DataTideHH portfolio](https://datatidehh.de/)
 
@@ -13,16 +13,16 @@ description: Java, C++ and Python implementations of the same terminal-based IPv
 
 ## Project purpose
 
-This project compares how the same clearly bounded networking calculation can be implemented in multiple programming languages.
+This project compares how the same clearly bounded networking calculation can be implemented in three programming languages.
 
 The focus is intentionally narrow:
 
 - read an IPv4 address with a CIDR prefix
-- validate the input
-- calculate the subnet information
+- validate the complete input
+- calculate subnet information
 - display a consistent terminal result
 - handle important IPv4 edge cases
-- keep the implementations readable and comparable
+- keep the implementations readable and directly comparable
 
 The project connects programming fundamentals with practical IPv4 subnetting without turning a small calculator into an unnecessarily large application.
 
@@ -34,9 +34,9 @@ The project connects programming fundamentals with practical IPv4 subnetting wit
 |---|---|---|---|
 | Java | Java 21 | `javac` and `java` | Implemented |
 | C++ | C++20 | CMake | Implemented |
-| Python | Python 3.12 | Python interpreter | Planned |
+| Python | Python 3.12 | Python interpreter | Implemented |
 
-The Java and C++ versions currently share the same input contract, output fields, validation categories and special-case behavior.
+All three versions share the same input contract, output fields, validation categories, special-case behavior and exit rules.
 
 ---
 
@@ -54,7 +54,7 @@ Example:
 192.168.10.42/24
 ```
 
-Both current implementations produce:
+Every implementation produces:
 
 ```text
 Input IP:          192.168.10.42
@@ -78,7 +78,7 @@ The complete normative rules are documented in the [behavior specification](beha
 
 ### Interactive mode
 
-Starting either implementation without a subnet argument opens:
+Starting an implementation without a subnet argument opens:
 
 ```text
 IPv4 Subnet Calculator
@@ -99,7 +99,7 @@ This mode supports repeatable manual checks and later automation. Invalid input 
 
 ---
 
-## Build examples
+## Run examples
 
 ### Java 21
 
@@ -116,7 +116,16 @@ cmake --build cpp/build
 ./cpp/build/ipv4_subnet_calculator
 ```
 
-Windows multi-configuration generators commonly place the executable in a configuration directory such as `cpp\build\Debug`.
+Windows multi-configuration generators place the executable in a configuration directory such as `cpp\build\Debug` or `cpp\build\Release`.
+
+### Python 3.12
+
+```text
+python python/subnet_calculator.py
+python python/subnet_calculator.py 192.168.10.42/24
+```
+
+On Windows, `py -3.12` can be used to select Python 3.12 explicitly.
 
 ---
 
@@ -131,8 +140,9 @@ The calculator rejects malformed or unsupported input, including:
 - leading zeros in multi-digit octets
 - missing or invalid prefixes
 - prefixes outside `0-32`
+- whitespace inside the IPv4/CIDR token
 
-The C++ version now reports the same concrete validation categories as Java instead of returning one generic invalid-input message.
+All versions report concrete validation categories instead of one generic invalid-input message.
 
 ---
 
@@ -155,17 +165,18 @@ These limits keep the repository understandable and ensure that the language imp
 
 ## Current status
 
-Phase 2 is complete:
+Phase 3 is complete:
 
 - Java implementation consolidated
 - C++ implementation consolidated
-- output structure unified
-- detailed C++ validation errors added
-- interactive mode added to both implementations
-- direct mode and help options aligned
-- build and usage documentation updated
+- Python implementation added
+- output structure unified across all three languages
+- validation categories aligned
+- interactive, direct and help modes aligned
+- `/0`, `/31` and `/32` behavior aligned
+- language-specific documentation and comparison updated
 
-The Python implementation is planned for Phase 3. Formal automated tests and GitHub Actions remain planned for Phase 4.
+Formal automated tests and GitHub Actions remain planned for Phase 4.
 
 ---
 
