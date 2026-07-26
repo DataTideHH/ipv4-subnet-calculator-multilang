@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  java:
+    name: Java 21
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Compile application and tests
+        run: javac -d java/out java/src/SubnetCalculator.java java/test/SubnetCalculatorTest.java
+
+      - name: Run shared contract cases
+        run: java -cp java/out SubnetCalculatorTest tests/cases.tsv
+
+  cpp:
+    name: C++20
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+
+      - name: Build
+        run: cmake --build cpp/build --config Release
+
+      - name: Run shared contract cases
+        run: ctest --test-dir cpp/build --build-config Release --output-on-failure
+
+  python:
+    name: Python 3.12
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile module
+        run: python -m py_compile python/subnet_calculator.py python/test_subnet_calculator.py
+
+      - name: Run shared contract cases
+        run: python -m unittest discover -s python -p "test_*.py" -v
