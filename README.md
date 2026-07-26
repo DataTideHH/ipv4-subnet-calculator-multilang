@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang/actions/workflows/ci.yml/badge.svg)](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang/actions/workflows/ci.yml)
 
-**Java 21 · C++20 · Python 3.12 · IPv4 subnetting · contract testing · CLI smoke testing · GitHub Actions**
+**Java 21 · C++20 · Python 3.12 · IPv4 subnetting · contract testing · CLI parity testing · GitHub Actions**
 
-A focused terminal-based IPv4 subnet calculator implemented in three programming languages from one shared behavior specification and verified against one shared set of domain cases.
+A focused terminal-based IPv4 subnet calculator implemented in three programming languages from one shared behavior specification and verified through shared domain cases plus process-level conformance tests.
 
 Project page: https://datatidehh.github.io/ipv4-subnet-calculator-multilang/
 
@@ -18,6 +18,9 @@ Each implementation follows the same contract:
 
 - accept one IPv4 address with a CIDR prefix
 - validate the complete input explicitly
+- use the same structural validation priority
+- ignore only the same six outer ASCII-whitespace characters
+- reject multi-digit CIDR prefixes with leading zeros
 - calculate subnet, wildcard, network, broadcast and host-range values
 - print the same fields in the same order
 - support interactive, direct and help modes
@@ -40,6 +43,8 @@ The project deliberately excludes IPv6, VLSM planning, subnet splitting, a GUI, 
 
 All three versions use equivalent calculation rules, validation categories, output fields, special-case handling, terminal modes and exit behavior.
 
+A separate cross-language runner executes all three real command-line programs and compares complete `stdout`, `stderr` and exit codes.
+
 ---
 
 ## Common Input
@@ -58,7 +63,40 @@ Examples:
 203.0.113.15/32
 ```
 
-Leading and trailing whitespace around the complete input is ignored. Whitespace inside the IPv4/CIDR token is rejected.
+Only these characters are ignored around the complete input:
+
+```text
+space, tab, line feed, carriage return, form feed, vertical tab
+```
+
+Other control characters and Unicode whitespace remain part of the token and are rejected. Whitespace inside the IPv4/CIDR token is invalid.
+
+CIDR prefixes use canonical decimal notation: `/0` is valid, while `/00`, `/08` and `/0032` are rejected.
+
+---
+
+## Validation Priority
+
+After exactly one `/` separator is found, validation proceeds in this order:
+
+1. empty IPv4 component
+2. empty prefix component
+3. detailed IPv4 validation
+4. detailed prefix validation
+
+This order is part of the observable contract. For example:
+
+```text
+192.168.1.999/
+```
+
+returns:
+
+```text
+Error: CIDR prefix is empty.
+```
+
+The empty prefix is reported before the invalid IPv4 octet in every implementation.
 
 ---
 
@@ -80,7 +118,7 @@ Note:              Standard subnet with network and broadcast addresses excluded
 
 The `/31` and `/32` cases use the dedicated host-range rules documented in the [behavior specification](docs/behavior-specification.md).
 
-The `/0` output is a mathematical calculation over the complete 32-bit IPv4 address space. It does not imply that all reported addresses are globally assignable to hosts; special-purpose and reserved ranges remain subject to their own standards and operational constraints.
+The `/0` output is a mathematical calculation over the complete 32-bit IPv4 address space. It does not imply that all reported addresses are globally assignable to hosts.
 
 ---
 
@@ -88,7 +126,7 @@ The `/0` output is a mathematical calculation over the complete 32-bit IPv4 addr
 
 ### Interactive mode
 
-Starting an implementation without a subnet argument opens a reusable prompt. Valid results and errors are followed by another prompt. Enter `q` or `Q` to quit.
+Starting an implementation without a subnet argument opens a reusable prompt. Valid results and errors are followed by another prompt. ASCII-trimmed `q` or `Q` quits.
 
 ### Direct mode
 
@@ -150,38 +188,23 @@ py -3.12 python/subnet_calculator.py 192.168.10.42/24
 
 ## Shared Contract Tests
 
-The language-neutral file [`tests/cases.tsv`](tests/cases.tsv) defines the expected results and validation failures used by every test runner.
+The language-neutral file [`tests/cases.tsv`](tests/cases.tsv) defines expected results and validation failures used by every language-specific runner.
 
-The current contract contains seven valid and sixteen invalid cases covering:
+The current contract contains seven valid and twenty-three invalid cases covering:
 
 - standard `/24`, `/30` and `/16` calculations
 - the complete `/0` IPv4 address space
 - `/31` point-to-point behavior
 - `/32` host-route behavior
-- surrounding-whitespace handling
+- surrounding ASCII-whitespace handling
 - missing and repeated CIDR separators
 - empty, malformed, signed and out-of-range values
 - oversized numeric octets and prefixes
-- leading-zero rejection
+- leading-zero rejection for octets and prefixes
 - whitespace inside the token
+- combined-error cases that verify validation priority
 
 Valid rows verify all result fields. Invalid rows verify the exact validation reason.
-
-### Cross-language bounded parsing
-
-Java and C++ use fixed-width integer parsers, while Python integers support arbitrary precision. To keep the contract independent from those implementation differences, all three versions:
-
-1. verify ASCII decimal digits
-2. compare the numeric text with the allowed upper bound
-3. reject oversized values with the shared out-of-range message
-4. convert only values already known to fit
-
-This avoids parser-overflow differences for inputs such as:
-
-```text
-192.168.1.999999999999999999999/24
-192.168.1.10/999999999999999999999
-```
 
 ### Run Java tests
 
@@ -204,12 +227,34 @@ ctest --test-dir cpp/build --build-config Release --output-on-failure
 python -m unittest discover -s python -p "test_*.py" -v
 ```
 
-Every language verifies the shared contract and the same four CLI smoke modes:
+Every language also verifies valid direct execution, invalid direct execution, help mode and incorrect usage.
 
-- valid direct execution
-- invalid direct execution
-- help mode
-- incorrect usage with too many arguments
+---
+
+## Cross-Language Parity Tests
+
+[`tests/cross_language_parity.py`](tests/cross_language_parity.py) executes the compiled Java and C++ programs together with the Python program.
+
+It compares the full process observation:
+
+```text
+(return code, stdout, stderr)
+```
+
+The current suite contains nine direct and two interactive cases covering:
+
+- mixed-invalid inputs and validation priority
+- leading-zero prefixes
+- a non-whitespace ASCII control character
+- non-breaking and ideographic spaces
+- allowed ASCII tab and carriage-return trimming
+- interactive quit handling
+
+After Java and C++ have been built:
+
+```text
+python tests/cross_language_parity.py
+```
 
 See [Testing and CI](docs/testing-and-ci.md) for the verification design.
 
@@ -217,33 +262,14 @@ See [Testing and CI](docs/testing-and-ci.md) for the verification design.
 
 ## GitHub Actions
 
-The `CI` workflow runs on pull requests, pushes to `main` and manual dispatches. It exposes three independent checks:
+The `CI` workflow runs on pull requests, pushes to `main` and manual dispatches. It exposes four independent checks:
 
 - `Java 21`
 - `C++20`
 - `Python 3.12`
+- `Cross-language parity`
 
-The jobs use Java 21, a C++20 CMake build and Python 3.12 on GitHub-hosted Linux runners. The workflow uses read-only repository permissions, cancels superseded runs, applies per-job timeouts and uses current official action major versions.
-
----
-
-## Validation Scope
-
-The calculator rejects:
-
-- missing or multiple `/` separators
-- missing or additional IPv4 octets
-- empty IPv4 octets
-- non-ASCII or non-decimal octets
-- octets outside `0-255`
-- oversized digit-only octets
-- leading zeros in multi-digit octets
-- empty, signed or non-decimal prefixes
-- prefixes outside `0-32`
-- oversized digit-only prefixes
-- whitespace inside the token
-
-Errors identify the concrete validation category rather than returning one generic invalid-input message.
+The jobs use read-only repository permissions, cancel superseded runs and apply per-job timeouts.
 
 ---
 
@@ -257,7 +283,8 @@ ipv4-subnet-calculator-multilang/
 ├── LICENSE
 ├── tests/
 │   ├── README.md
-│   └── cases.tsv
+│   ├── cases.tsv
+│   └── cross_language_parity.py
 ├── java/
 │   ├── README.md
 │   ├── src/SubnetCalculator.java
@@ -294,6 +321,7 @@ ipv4-subnet-calculator-multilang/
 | 3 | Python implementation | Complete |
 | 4 | Shared tests, language-specific runners and GitHub Actions | Complete |
 | 5 | Portfolio integration, hardening and related-project links | Complete for current scope |
+| 6 | Adversarial parsing review and process-level cross-language parity | Complete |
 
 ---
 
@@ -304,7 +332,7 @@ ipv4-subnet-calculator-multilang/
 - [Core Internet Standards and RFC Editor](https://github.com/DataTideHH/open-learning-resources/tree/main/resources/networking/core-internet-standards-rfc-editor)
 - [GitHub Actions Documentation](https://github.com/DataTideHH/open-learning-resources/tree/main/resources/git/github-actions-documentation)
 
-The RFC links are standards-oriented references. This learning implementation is not intended to replace a mature IP-address library.
+This learning implementation is not intended to replace a mature IP-address library.
 
 ---
 
@@ -317,7 +345,7 @@ The RFC links are standards-oriented references. This learning implementation is
 
 ## Portfolio Context
 
-The project is a supporting IT-foundations project within a broader Data/BI and process-analysis portfolio. Its value is not the size of the calculator, but the controlled implementation of one specification in three languages, explicit validation, shared domain tests, reproducible CI and clear technical documentation.
+The project is a supporting IT-foundations project within a broader Data/BI and process-analysis portfolio. Its value is not the size of the calculator, but the controlled implementation of one specification in three languages, explicit validation, shared domain tests, adversarial review, reproducible CI and clear technical documentation.
 
 It demonstrates how networking knowledge, software structure, test design and documentation can reinforce one another without overstating the project as an enterprise application.
 
