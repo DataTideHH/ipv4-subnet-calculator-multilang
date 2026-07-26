@@ -140,4 +140,18 @@ jobs:
         run: cmake --build cpp/build --config Release
 
       - name: Compare stdout, stderr and exit codes
+        id: parity
+        continue-on-error: true
         run: python tests/cross_language_parity.py
+
+      - name: Upload parity diagnostics
+        if: steps.parity.outcome == 'failure'
+        uses: actions/upload-artifact@v6
+        with:
+          name: windows-parity-diagnostics
+          path: parity-diagnostics.txt
+          if-no-files-found: error
+
+      - name: Fail if parity diverged
+        if: steps.parity.outcome == 'failure'
+        run: exit 1
