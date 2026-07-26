@@ -1,11 +1,11 @@
 ---
 title: Implementation Comparison
-description: Comparison of the Java, C++ and Python calculator implementations
+description: Comparison of the Java, C++ and Python calculator implementations and tests
 ---
 
 # Implementation Comparison
 
-The Java, C++ and Python implementations follow the same observable behavior while using idiomatic structures for each language.
+The Java, C++ and Python implementations follow the same observable behavior while using structures and test approaches appropriate to each language.
 
 ## Shared behavior
 
@@ -24,34 +24,30 @@ All implementations provide:
 
 | Area | Java 21 | C++20 | Python 3.12 |
 |---|---|---|---|
-| Status | Implemented | Implemented | Implemented |
+| Status | Implemented and tested | Implemented and tested | Implemented and tested |
 | Result type | Record | Struct | Frozen, slotted dataclass |
 | Build | `javac` | CMake | None |
 | Runtime | JVM | Native executable | Python interpreter |
-| Dependencies | Java standard library | C++ standard library | Python standard library |
-| Interactive mode | Implemented | Implemented | Implemented |
-| Direct mode | Implemented | Implemented | Implemented |
-| Help options | `-h`, `--help` | `-h`, `--help` | `-h`, `--help` |
+| Runtime dependencies | Java standard library | C++ standard library | Python standard library |
 | Validation errors | `IllegalArgumentException` | `std::invalid_argument` | `ValueError` |
 | IPv4 storage | 64-bit `long` calculation values | `std::uint32_t` | Arbitrary-precision `int`, masked to 32 bits |
 | Address count | 64-bit `long` | `std::uint64_t` | `int` |
-| Automated tests | Phase 4 | Phase 4 | Phase 4 |
+| Test runner | Plain Java process-based runner | CTest executable | `unittest` |
+| Shared cases | `tests/cases.tsv` | `tests/cases.tsv` | `tests/cases.tsv` |
+| CI check | `Java 21` | `C++20` | `Python 3.12` |
 
 ## Java design
 
-The Java version keeps the complete beginner-readable implementation in one source file.
+The Java version keeps the beginner-readable implementation in one source file. A record stores the calculated values, while dedicated methods handle modes, input, output, validation and subnet arithmetic.
 
-A private record stores the calculated values. Dedicated methods handle:
+The Java contract runner executes the real command-line class in a child JVM. This verifies:
 
-- program modes
-- user input
-- output formatting
-- IPv4 validation
-- CIDR validation
-- subnet arithmetic
-- IPv4 text conversion
+- public terminal output
+- direct-mode exit codes
+- exact validation messages
+- all shared valid and invalid domain cases
 
-The implementation uses a `long` for address counts so `/0` can represent all `4,294,967,296` IPv4 addresses.
+Using the public CLI boundary avoids exposing internal methods solely for testing.
 
 ## C++ design
 
@@ -63,55 +59,58 @@ cpp/src/subnet.cpp
 cpp/include/subnet.h
 ```
 
-The `Calculation` struct represents the shared result. IPv4 values use `std::uint32_t`, while total and usable address counts use `std::uint64_t`.
+The `Calculation` struct represents the result. IPv4 values use `std::uint32_t`; address counts use `std::uint64_t` so `/0` can represent `2^32` addresses.
 
-Validation failures use `std::invalid_argument` with a specific reason, allowing the terminal layer to report errors equivalent to the Java and Python versions.
+The C++ test executable links directly against the calculation module and verifies every result field and `std::invalid_argument` message. CTest integrates it into both local builds and GitHub Actions.
 
 ## Python design
 
-The Python version keeps the implementation in one module:
+The Python version keeps the implementation in one module and represents results with a frozen, slotted `dataclass`.
 
-```text
-python/subnet_calculator.py
-```
+The standard-library `unittest` suite verifies the shared calculation and validation cases. Additional subprocess checks cover direct-mode output, success and failure exit codes, and help mode.
 
-A frozen, slotted `dataclass` represents the shared calculation result. Separate functions handle:
+The explicit ASCII digit check matches the specification rather than Python's broader Unicode-aware `str.isdigit()` behavior.
 
-- argument and mode selection
-- interactive input
-- output formatting
-- IPv4 and CIDR validation
-- subnet arithmetic
-- integer-to-IPv4 conversion
+## Shared contract design
 
-Python integers do not overflow at 32 or 64 bits. The implementation still applies an explicit `0xFFFFFFFF` mask where required so that the bitwise behavior remains equivalent to fixed-width IPv4 arithmetic.
+The tab-separated file `tests/cases.tsv` is intentionally simple enough to parse without third-party libraries in all three languages.
 
-The digit check deliberately accepts only ASCII `0-9`, matching the shared specification instead of Python's broader Unicode-aware `str.isdigit()` behavior.
+Valid rows define:
+
+- subnet and wildcard masks
+- network and broadcast addresses
+- total and usable address counts
+- first and last usable hosts
+- the explanatory note
+
+Invalid rows define the exact expected validation message.
+
+This makes the fachliche expectations independent from any one implementation language.
 
 ## Deliberate differences
 
-The goal is equivalent behavior, not identical source code.
+Equivalent behavior does not require identical source code:
 
-- Java uses a record and `IllegalArgumentException`.
-- C++ uses a struct, fixed-width unsigned integers and `std::invalid_argument`.
-- Python uses a dataclass, functions and `ValueError`.
-- Java and Python remain single-file implementations because the program is small.
-- C++ keeps a header and source split because calculation logic and the executable are separate compilation units.
+- Java tests the public CLI through a child JVM.
+- C++ tests the reusable calculation module directly.
+- Python combines direct function tests with CLI smoke tests.
+- Java and Python remain single-file applications because the program is small.
+- C++ keeps a header/source split because that is natural for the compiled module boundary.
 
-These differences demonstrate language conventions while preserving the same user-facing contract.
+## Verification status
 
-## Validation status
+The automated contract covers:
 
-The implementations were manually checked for:
-
-- standard subnet output
+- standard `/24`, `/30` and `/16` subnet output
 - `/0`
 - `/31`
 - `/32`
-- all invalid examples in the shared specification
-- interactive error recovery
-- quit and EOF behavior
-- help behavior
-- direct-mode exit codes
+- surrounding-whitespace trimming
+- malformed separators
+- malformed octet counts
+- empty and non-decimal values
+- signs and internal whitespace
+- out-of-range values
+- leading zeros
 
-Formal test suites and continuous integration remain intentionally reserved for Phase 4.
+The GitHub Actions workflow runs all three language checks independently on pull requests and pushes to `main`.
