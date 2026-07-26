@@ -1,0 +1,22 @@
+# kind	name	input	subnet_mask	wildcard_mask	network	broadcast	total	usable	first	last	note_or_error
+valid	standard-24	192.168.10.42/24	255.255.255.0	0.0.0.255	192.168.10.0	192.168.10.255	256	254	192.168.10.1	192.168.10.254	Standard subnet with network and broadcast addresses excluded.
+valid	small-30	10.0.0.5/30	255.255.255.252	0.0.0.3	10.0.0.4	10.0.0.7	4	2	10.0.0.5	10.0.0.6	Standard subnet with network and broadcast addresses excluded.
+valid	private-16	172.16.1.1/16	255.255.0.0	0.0.255.255	172.16.0.0	172.16.255.255	65536	65534	172.16.0.1	172.16.255.254	Standard subnet with network and broadcast addresses excluded.
+valid	all-ipv4-0	0.0.0.0/0	0.0.0.0	255.255.255.255	0.0.0.0	255.255.255.255	4294967296	4294967294	0.0.0.1	255.255.255.254	Standard subnet with network and broadcast addresses excluded.
+valid	point-to-point-31	192.0.2.10/31	255.255.255.254	0.0.0.1	192.0.2.10	192.0.2.11	2	2	192.0.2.10	192.0.2.11	/31 subnet: both addresses are usable for point-to-point links.
+valid	host-route-32	203.0.113.15/32	255.255.255.255	0.0.0.0	203.0.113.15	203.0.113.15	1	1	203.0.113.15	203.0.113.15	/32 host route: single usable address.
+valid	trim-surrounding-space	 192.168.10.42/24 	255.255.255.0	0.0.0.255	192.168.10.0	192.168.10.255	256	254	192.168.10.1	192.168.10.254	Standard subnet with network and broadcast addresses excluded.
+invalid	empty-input										Input is empty.
+invalid	missing-separator	192.168.1.10									Missing '/' separator.
+invalid	multiple-separators	192.168.1.10/24/1									Input must contain exactly one '/'.
+invalid	empty-ipv4	/24									IPv4 address is empty.
+invalid	empty-prefix	192.168.1.10/									CIDR prefix is empty.
+invalid	nondigit-prefix	192.168.1.10/abc									CIDR prefix must contain only digits: abc
+invalid	prefix-out-of-range	192.168.1.10/33									CIDR prefix out of range (0-32): 33
+invalid	wrong-octet-count	192.168.1/24									IPv4 must have exactly four octets: 192.168.1
+invalid	empty-octet	192..1.10/24									IPv4 octet is empty in: 192..1.10
+invalid	nondigit-octet	192.168.a.10/24									IPv4 octet must contain only digits: a
+invalid	octet-out-of-range	192.168.1.300/24									IPv4 octet out of range (0-255): 300
+invalid	leading-zero	192.168.001.10/24									IPv4 octet must not have leading zeros: 001
+invalid	prefix-sign	192.168.1.10/+24									CIDR prefix must contain only digits: +24
+invalid	internal-whitespace	192.168.1.10/2 4									CIDR prefix must contain only digits: 2 4

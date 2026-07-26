@@ -1,60 +1,55 @@
 ---
 title: IPv4 Subnet Calculator Multilang
-description: Java, C++ and Python implementations of the same terminal-based IPv4 subnet calculator
+description: Tested Java, C++ and Python implementations of the same IPv4 subnet calculator
 ---
 
 # IPv4 Subnet Calculator Multilang
 
-**A small terminal-based IPv4 subnet calculator implemented in Java 21, C++20 and Python 3.12 from one shared behavior specification.**
+**One IPv4/CIDR specification, three implementations, one shared contract-test suite.**
 
-[View repository](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang) · [Read the full README](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang/blob/main/README.md) · [DataTideHH portfolio](https://datatidehh.de/)
+[View repository](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang) · [View CI](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang/actions/workflows/ci.yml) · [Read the full README](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang/blob/main/README.md) · [DataTideHH portfolio](https://datatidehh.de/)
 
 ---
 
 ## Project purpose
 
-This project compares how the same clearly bounded networking calculation can be implemented in three programming languages.
+This project compares how a clearly bounded networking calculation can be implemented and verified in Java 21, C++20 and Python 3.12.
 
-The focus is intentionally narrow:
+The deliberately narrow scope makes the comparison credible:
 
-- read an IPv4 address with a CIDR prefix
-- validate the complete input
-- calculate subnet information
-- display a consistent terminal result
-- handle important IPv4 edge cases
-- keep the implementations readable and directly comparable
+- one accepted `IPv4/CIDR` format
+- explicit validation
+- consistent terminal output
+- interactive and direct modes
+- correct `/0`, `/31` and `/32` handling
+- no external runtime dependencies
+- one shared set of expected domain results
 
-The project connects programming fundamentals with practical IPv4 subnetting without turning a small calculator into an unnecessarily large application.
+The project connects programming fundamentals, test design and practical IPv4 subnetting without presenting a small calculator as a production network platform.
 
 ---
 
-## Current implementations
+## Implementations
 
-| Implementation | Version / Standard | Tooling | Status |
+| Implementation | Structure | Verification | Status |
 |---|---|---|---|
-| Java | Java 21 | `javac` and `java` | Implemented |
-| C++ | C++20 | CMake | Implemented |
-| Python | Python 3.12 | Python interpreter | Implemented |
+| Java 21 | Single application class with a record result | Plain Java CLI contract runner | Implemented and tested |
+| C++20 | Header, calculation module and terminal entry point | CTest executable | Implemented and tested |
+| Python 3.12 | Single module with a frozen, slotted dataclass | Standard-library `unittest` | Implemented and tested |
 
 All three versions share the same input contract, output fields, validation categories, special-case behavior and exit rules.
 
 ---
 
-## Shared behavior
+## Example
 
-The canonical input format is:
-
-```text
-IPv4/CIDR
-```
-
-Example:
+Input:
 
 ```text
 192.168.10.42/24
 ```
 
-Every implementation produces:
+Output:
 
 ```text
 Input IP:          192.168.10.42
@@ -74,114 +69,91 @@ The complete normative rules are documented in the [behavior specification](beha
 
 ---
 
-## Terminal modes
+## Shared verification
 
-### Interactive mode
+Every language-specific runner reads the same tab-separated contract file.
 
-Starting an implementation without a subnet argument opens:
+The current set covers:
 
-```text
-IPv4 Subnet Calculator
+- standard `/24`, `/30` and `/16` subnets
+- all IPv4 addresses through `/0`
+- `/31` point-to-point semantics
+- `/32` host-route semantics
+- surrounding-whitespace trimming
+- malformed separators and octet counts
+- empty and non-decimal values
+- signs, range violations and leading zeros
+- whitespace inside the token
 
-Enter IPv4/CIDR or q to quit:
-> 192.168.10.42/24
-```
+Valid cases verify every result field. Invalid cases verify the exact validation reason.
 
-The calculator continues after valid results and validation errors. Enter `q` or `Q` to quit.
+Read [Testing and CI](testing-and-ci.md) for commands and design details.
 
-### Direct command-line mode
+---
 
-```text
-<program> 192.168.10.42/24
-```
+## GitHub Actions
 
-This mode supports repeatable manual checks and later automation. Invalid input returns a non-zero exit code.
+The repository runs three independent checks on pull requests and pushes to `main`:
+
+- `Java 21`
+- `C++20`
+- `Python 3.12`
+
+Separate jobs make failures easy to locate and provide stable status checks for protected-branch rules.
 
 ---
 
 ## Run examples
 
-### Java 21
+### Java
 
 ```text
 javac -d java/out java/src/SubnetCalculator.java
-java -cp java/out SubnetCalculator
+java -cp java/out SubnetCalculator 192.168.10.42/24
 ```
 
-### C++20
+### C++
 
 ```text
 cmake -S cpp -B cpp/build
-cmake --build cpp/build
-./cpp/build/ipv4_subnet_calculator
+cmake --build cpp/build --config Release
 ```
 
-Windows multi-configuration generators place the executable in a configuration directory such as `cpp\build\Debug` or `cpp\build\Release`.
-
-### Python 3.12
+### Python
 
 ```text
-python python/subnet_calculator.py
 python python/subnet_calculator.py 192.168.10.42/24
 ```
 
-On Windows, `py -3.12` can be used to select Python 3.12 explicitly.
+---
+
+## Related portfolio projects
+
+- [Cisco Switching Lab](https://datatidehh.github.io/cisco-switching-lab/) provides the physical switching and CCNA-oriented context behind IPv4 addressing and subnetting.
+- [Spring Boot Process API Basics](https://datatidehh.github.io/spring-boot-process-api-basics/) shows the Java progression from a compact command-line implementation to a layered REST API.
+
+Together, the projects show a controlled learning progression across networking fundamentals, multi-language implementation, automated verification and backend structure.
 
 ---
 
-## Validation focus
+## Scope limits
 
-The calculator rejects malformed or unsupported input, including:
+The project intentionally excludes IPv6, VLSM planning, subnet splitting, a GUI, a web frontend, persistence, exports and external CLI frameworks.
 
-- missing or multiple CIDR separators
-- invalid IPv4 octet counts
-- empty or non-decimal octets
-- octets outside `0-255`
-- leading zeros in multi-digit octets
-- missing or invalid prefixes
-- prefixes outside `0-32`
-- whitespace inside the IPv4/CIDR token
-
-All versions report concrete validation categories instead of one generic invalid-input message.
+These limits keep the source understandable and the cross-language comparison direct.
 
 ---
 
-## Deliberate scope limits
+## Portfolio assessment
 
-The current project does not include:
+The strongest signal is not the calculator alone. It is the disciplined workflow around it:
 
-- IPv6
-- a graphical user interface
-- a web application
-- VLSM planning
-- subnet splitting
-- database storage
-- export functions
-- external command-line frameworks
+- explicit behavioral specification
+- three independently structured implementations
+- shared fachliche test cases
+- reproducible local commands
+- GitHub Actions
+- public project documentation
+- honest scope boundaries
 
-These limits keep the repository understandable and ensure that the language implementations remain directly comparable.
-
----
-
-## Current status
-
-Phase 3 is complete:
-
-- Java implementation consolidated
-- C++ implementation consolidated
-- Python implementation added
-- output structure unified across all three languages
-- validation categories aligned
-- interactive, direct and help modes aligned
-- `/0`, `/31` and `/32` behavior aligned
-- language-specific documentation and comparison updated
-
-Formal automated tests and GitHub Actions remain planned for Phase 4.
-
----
-
-## Portfolio context
-
-The project supports practical learning in Java, C++, Python, IPv4 subnetting, input validation, reproducible workflows and technical documentation.
-
-It is a supporting IT-foundations project within the broader DataTideHH portfolio and complements CCNA-oriented networking work without changing the main Data/BI and process-analysis direction.
+That makes the repository a credible supporting project for a Data/BI and process-analysis portfolio with additional networking and software-engineering foundations.
