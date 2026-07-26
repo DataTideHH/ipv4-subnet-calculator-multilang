@@ -12,8 +12,8 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 @dataclass(frozen=True)
 class Observation:
     returncode: int
-    stdout: str
-    stderr: str
+    stdout: bytes
+    stderr: bytes
 
 
 @dataclass(frozen=True)
@@ -146,11 +146,9 @@ def observe(
 
     completed = subprocess.run(
         arguments,
-        input=stdin,
+        input=None if stdin is None else stdin.encode("utf-8"),
         capture_output=True,
         check=False,
-        text=True,
-        encoding="utf-8",
     )
     return Observation(completed.returncode, completed.stdout, completed.stderr)
 
@@ -188,9 +186,10 @@ def verify_direct_cases(programs: dict[str, list[str]]) -> None:
             )
 
         stream = baseline.stdout if case.fragment_stream == "stdout" else baseline.stderr
-        if case.expected_fragment not in stream:
+        expected_fragment = case.expected_fragment.encode("ascii")
+        if expected_fragment not in stream:
             raise AssertionError(
-                f"{case.name}: expected {case.expected_fragment!r} in "
+                f"{case.name}: expected {expected_fragment!r} in "
                 f"{case.fragment_stream}, got {stream!r}"
             )
 
@@ -206,9 +205,10 @@ def verify_interactive_cases(programs: dict[str, list[str]]) -> None:
         if baseline.returncode != 0:
             raise AssertionError(f"{name}: expected exit code 0, got {baseline.returncode}")
 
-        if expected_stderr_fragment not in baseline.stderr:
+        expected_fragment = expected_stderr_fragment.encode("ascii")
+        if expected_fragment not in baseline.stderr:
             raise AssertionError(
-                f"{name}: expected {expected_stderr_fragment!r} in stderr, "
+                f"{name}: expected {expected_fragment!r} in stderr, "
                 f"got {baseline.stderr!r}"
             )
 
