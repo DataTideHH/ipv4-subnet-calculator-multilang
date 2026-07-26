@@ -5,7 +5,7 @@ description: Java, C++ and Python implementations of the same terminal-based IPv
 
 # IPv4 Subnet Calculator Multilang
 
-**A small terminal-based IPv4 subnet calculator implemented in Java 21, C++20 and Python 3.12 according to one shared behavior specification.**
+**A small terminal-based IPv4 subnet calculator implemented from one shared behavior specification.**
 
 [View repository](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang) · [Read the full README](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang/blob/main/README.md) · [DataTideHH portfolio](https://datatidehh.de/)
 
@@ -13,7 +13,7 @@ description: Java, C++ and Python implementations of the same terminal-based IPv
 
 ## Project purpose
 
-This project compares how the same clearly bounded networking calculation can be implemented in three programming languages.
+This project compares how the same clearly bounded networking calculation can be implemented in multiple programming languages.
 
 The focus is intentionally narrow:
 
@@ -28,9 +28,21 @@ The project connects programming fundamentals with practical IPv4 subnetting wit
 
 ---
 
+## Current implementations
+
+| Implementation | Version / Standard | Tooling | Status |
+|---|---|---|---|
+| Java | Java 21 | `javac` and `java` | Implemented |
+| C++ | C++20 | CMake | Implemented |
+| Python | Python 3.12 | Python interpreter | Planned |
+
+The Java and C++ versions currently share the same input contract, output fields, validation categories and special-case behavior.
+
+---
+
 ## Shared behavior
 
-All three implementations will use the same canonical input format:
+The canonical input format is:
 
 ```text
 IPv4/CIDR
@@ -42,7 +54,7 @@ Example:
 192.168.10.42/24
 ```
 
-The expected result structure is:
+Both current implementations produce:
 
 ```text
 Input IP:          192.168.10.42
@@ -62,9 +74,11 @@ The complete normative rules are documented in the [behavior specification](beha
 
 ---
 
-## Planned terminal modes
+## Terminal modes
 
 ### Interactive mode
+
+Starting either implementation without a subnet argument opens:
 
 ```text
 IPv4 Subnet Calculator
@@ -73,7 +87,7 @@ Enter IPv4/CIDR or q to quit:
 > 192.168.10.42/24
 ```
 
-The application will continue accepting input until the user quits.
+The calculator continues after valid results and validation errors. Enter `q` or `Q` to quit.
 
 ### Direct command-line mode
 
@@ -81,40 +95,50 @@ The application will continue accepting input until the user quits.
 <program> 192.168.10.42/24
 ```
 
-This mode supports repeatable manual tests and later automation.
+This mode supports repeatable manual checks and later automation. Invalid input returns a non-zero exit code.
 
 ---
 
-## Implementation comparison
+## Build examples
 
-| Implementation | Version / Standard | Tooling | External dependencies |
-|---|---|---|---|
-| Java | Java 21 | `javac` and `java` | None |
-| C++ | C++20 | CMake | None |
-| Python | Python 3.12 | Python interpreter | None |
+### Java 21
 
-The detailed comparison will be expanded as each implementation is added. See [implementation comparison](implementation-comparison.md).
+```text
+javac -d java/out java/src/SubnetCalculator.java
+java -cp java/out SubnetCalculator
+```
+
+### C++20
+
+```text
+cmake -S cpp -B cpp/build
+cmake --build cpp/build
+./cpp/build/ipv4_subnet_calculator
+```
+
+Windows multi-configuration generators commonly place the executable in a configuration directory such as `cpp\build\Debug`.
 
 ---
 
 ## Validation focus
 
-The calculator will reject malformed or unsupported input, including:
+The calculator rejects malformed or unsupported input, including:
 
-- missing CIDR prefixes
+- missing or multiple CIDR separators
 - invalid IPv4 octet counts
 - empty or non-decimal octets
 - octets outside `0-255`
 - leading zeros in multi-digit octets
+- missing or invalid prefixes
 - prefixes outside `0-32`
 
-Invalid input will not terminate the interactive session. Direct command-line mode will return a non-zero exit code.
+The C++ version now reports the same concrete validation categories as Java instead of returning one generic invalid-input message.
 
 ---
 
 ## Deliberate scope limits
 
-The initial project does not include:
+The current project does not include:
 
 - IPv6
 - a graphical user interface
@@ -125,22 +149,23 @@ The initial project does not include:
 - export functions
 - external command-line frameworks
 
-These limits keep the repository understandable and ensure that the three language implementations remain directly comparable.
+These limits keep the repository understandable and ensure that the language implementations remain directly comparable.
 
 ---
 
 ## Current status
 
-Phase 1 is complete and provides:
+Phase 2 is complete:
 
-- repository documentation
-- shared behavior specification
-- language-directory foundations
-- GitHub Pages foundation
-- pull-request template
-- squash-oriented contribution workflow
+- Java implementation consolidated
+- C++ implementation consolidated
+- output structure unified
+- detailed C++ validation errors added
+- interactive mode added to both implementations
+- direct mode and help options aligned
+- build and usage documentation updated
 
-The Java, C++ and Python implementations will be added in subsequent phases.
+The Python implementation is planned for Phase 3. Formal automated tests and GitHub Actions remain planned for Phase 4.
 
 ---
 
