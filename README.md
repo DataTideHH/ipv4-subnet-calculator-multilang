@@ -1,6 +1,7 @@
 # IPv4 Subnet Calculator Multilang
 
 [![CI](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang/actions/workflows/ci.yml/badge.svg)](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang/actions/workflows/ci.yml)
+[![GitHub Pages](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/DataTideHH/ipv4-subnet-calculator-multilang/actions/workflows/pages/pages-build-deployment)
 
 **Java 21 · C++20 · Python 3.12 · IPv4 subnetting · contract testing · CLI parity testing · GitHub Actions**
 
